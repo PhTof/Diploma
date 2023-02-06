@@ -290,6 +290,10 @@ struct attribute_group dax_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(dax_attribute_group);
 
+int dax_get_numa_node(struct dax_device *dax_dev){
+  return dax_dev->ops->get_numa_node(dax_dev);
+}
+
 /**
  * dax_direct_access() - translate a device pgoff to an absolute pfn
  * @dax_dev: a dax_device instance representing the logical memory range

@@ -1114,6 +1114,10 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	size_t xfer;
 	int id;
 
+  //propagating nid
+  int nid = dax_get_numa_node(dax_dev);
+  inode->nid = nid;
+
 	if (iov_iter_rw(iter) == READ) {
 		end = min(end, i_size_read(inode));
 		if (pos >= end)
@@ -1231,6 +1235,11 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		pos += ret;
 		done += ret;
 	}
+
+  /*
+   *You can now find in indoe->nid new attribute the numa node
+   */
+  int nid = inode->nid; // in theory this is the numa node
 
 	iocb->ki_pos += done;
 	return done ? done : ret;

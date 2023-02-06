@@ -718,6 +718,9 @@ struct inode {
 #endif
 
 	void			*i_private; /* fs or device private pointer */
+
+  int nid; //nasty hack to get dax device numa id 
+
 } __randomize_layout;
 
 struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode);
