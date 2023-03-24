@@ -2632,7 +2632,9 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	struct super_block *sb;
 	struct ext4_buddy e4b;
 	int lost;
-	int numa_node;
+	int numa_node, nodes_unchecked;
+	ext4_group_t local_grp_0;
+	ext4_group_t local_grps;
 
 	// Does this run from a fixed kernel worker thread?
 	// dump_stack();
@@ -2680,7 +2682,11 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	}
 
 	/* if stream allocation is enabled, use global goal */
-	if ((ac->ac_flags & EXT4_MB_STREAM_ALLOC)) {
+	// Disabled for now: the last group can easily be
+	// contained in another NUMA node's memory, it should
+	// be fixed with a simple if statement, but it needs
+	// some testing first
+	if ((ac->ac_flags & EXT4_MB_STREAM_ALLOC) & 0) {
 		/* TBD: may be hot point */
 		spin_lock(&sbi->s_md_lock);
 		ac->ac_g_ex.fe_group = sbi->s_mb_last_group[numa_node];
@@ -2697,12 +2703,9 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 
 	/* ADDITION */
 	// int numa_node = numa_node_id();
-	int nodes_unchecked=2;
-	ext4_group_t local_grp_0;
-	ext4_group_t local_grps;
+	nodes_unchecked=2;
 repeat:
 	// printk(KERN_INFO "IS THE NUMA NODE OK? -> (real) %d (inode goal group numa node) %d\n", numa_node_id(), numa_node);
-	int count = 0;
 	/* ADDITION */
 	local_grp_0 = numa_node*
 		((ngroups >> 1) + (ngroups % 2));
@@ -2720,7 +2723,6 @@ repeat:
 		for (i = 0; i < local_grps; group = next_linear_group(ac, group, local_grp_0, local_grps),
 			     i++) {
 			int ret = 0, new_cr;
-			count++;
 
 			//printk(KERN_INFO "Trying group %u (ngroups = %u / local_grp_0 = %u /\n local_grps = %u / cursed = %u)\n", 
 			//	group, ngroups, local_grp_0, local_grps, ac->ac_g_ex.fe_group);
@@ -2841,7 +2843,7 @@ repeat:
 		cr = ac->ac_2order ? 0 : 1;
 		numa_node = 1 - numa_node;
 		ac->numa_node = numa_node;
-		// printk(KERN_INFO "PLEASE GOD SAVE US: count = %d\n", count);
+		// printk(KERN_INFO "PLEASE GOD SAVE US\n");
 		goto repeat;
 	}
 	

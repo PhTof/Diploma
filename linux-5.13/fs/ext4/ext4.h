@@ -970,6 +970,8 @@ do {									       \
 
 #include "extents_status.h"
 #include "fast_commit.h"
+/* ADDITION */
+#include "numa.h"
 
 /*
  * Lock subclasses for i_data_sem in the ext4_inode_info structure.
@@ -1113,7 +1115,8 @@ struct ext4_inode_info {
 					   i_es_lock  */
 
 	/* ialloc */
-	ext4_group_t	i_last_alloc_group;
+	/* ADDITION */
+	ext4_group_t	i_last_alloc_group[2];
 
 	/* allocation reservation info for delalloc */
 	/* In case of bigalloc, this refer to clusters rather than blocks */
@@ -1543,8 +1546,8 @@ struct ext4_sb_info {
 	unsigned int s_mb_max_inode_prealloc;
 	unsigned int s_max_dir_size_kb;
 	/* where last allocation was done - for stream allocation */
-	unsigned long s_mb_last_group;
-	unsigned long s_mb_last_start;
+	unsigned long s_mb_last_group[EXT4_NUMA_NUM_NODES];
+	unsigned long s_mb_last_start[EXT4_NUMA_NUM_NODES];
 	unsigned int s_mb_prefetch;
 	unsigned int s_mb_prefetch_limit;
 
@@ -1686,6 +1689,7 @@ struct ext4_sb_info {
 	int s_fc_debug_max_replay;
 #endif
 	struct ext4_fc_replay_state s_fc_replay_state;
+	struct ext4_numa_info s_numa_info;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)

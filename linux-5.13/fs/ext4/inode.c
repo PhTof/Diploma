@@ -4763,7 +4763,9 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 #endif
 	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
 	ei->i_block_group = iloc.block_group;
-	ei->i_last_alloc_group = ~0;
+	// Bad solution
+	ei->i_last_alloc_group[0] = ~0;
+	ei->i_last_alloc_group[1] = ~0;
 	/*
 	 * NOTE! The in-memory inode i_data array is in little-endian order
 	 * even on big-endian machines: we do NOT byteswap the block numbers!
