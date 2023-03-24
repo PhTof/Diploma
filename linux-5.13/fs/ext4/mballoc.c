@@ -17,6 +17,9 @@
 #include <linux/nospec.h>
 #include <linux/backing-dev.h>
 #include <trace/events/ext4.h>
+/* ADDITION */
+#include <linux/topology.h>
+#include "numa.h"
 
 /*
  * MUSTDO:
@@ -866,7 +869,7 @@ mb_update_avg_fragment_size(struct super_block *sb, struct ext4_group_info *grp)
  * Choose next group by traversing largest_free_order lists. Updates *new_cr if
  * cr level needs an update.
  */
-static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
+noinline static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
 			int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
@@ -919,7 +922,7 @@ static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
  * the linear search should continue for one iteration since there's lock
  * contention on the rb tree lock.
  */
-static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
+noinline static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
@@ -1006,7 +1009,7 @@ static inline int should_optimize_scan(struct ext4_allocation_context *ac)
  * performed, this function just returns the same group
  */
 static int
-next_linear_group(struct ext4_allocation_context *ac, int group, int ngroups)
+next_linear_group(struct ext4_allocation_context *ac, int group, int first_group, int ngroups)
 {
 	if (!should_optimize_scan(ac))
 		goto inc_and_return;
@@ -1027,7 +1030,11 @@ inc_and_return:
 	 * Artificially restricted ngroups for non-extent
 	 * files makes group > ngroups possible on first loop.
 	 */
-	return group + 1 >= ngroups ? 0 : group + 1;
+
+	/* ADDITION */
+	// Assumption: group belongs to [first_group, first_group + ngroups]
+	return first_group + (ngroups + (group + 1) - first_group) % ngroups;
+	// return group + 1 >= ngroups ? 0 : group + 1;
 }
 
 /*
@@ -2035,8 +2042,8 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	/* store last allocated for subsequent stream allocation */
 	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
 		spin_lock(&sbi->s_md_lock);
-		sbi->s_mb_last_group = ac->ac_f_ex.fe_group;
-		sbi->s_mb_last_start = ac->ac_f_ex.fe_start;
+		sbi->s_mb_last_group[ac->numa_node] = ac->ac_f_ex.fe_group;
+		sbi->s_mb_last_start[ac->numa_node] = ac->ac_f_ex.fe_start;
 		spin_unlock(&sbi->s_md_lock);
 	}
 	/*
@@ -2197,10 +2204,13 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 	struct ext4_free_extent ex;
 
+	// !!!!
+	// if (!(ac->ac_flags & EXT4_MB_HINT_TRY_GOAL) && 0)
 	if (!(ac->ac_flags & EXT4_MB_HINT_TRY_GOAL))
 		return 0;
-	if (grp->bb_free == 0)
+	if (grp->bb_free == 0) {
 		return 0;
+	}
 
 	err = ext4_mb_load_buddy(ac->ac_sb, group, e4b);
 	if (err)
@@ -2610,6 +2620,7 @@ void ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
 	}
 }
 
+
 static noinline_for_stack int
 ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 {
@@ -2621,6 +2632,12 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	struct super_block *sb;
 	struct ext4_buddy e4b;
 	int lost;
+	int numa_node;
+
+	// Does this run from a fixed kernel worker thread?
+	// dump_stack();
+	numa_node = ext4_numa_bg_node(ac->ac_sb, ac->ac_g_ex.fe_group);
+	ac->numa_node = numa_node;
 
 	sb = ac->ac_sb;
 	sbi = EXT4_SB(sb);
@@ -2663,11 +2680,11 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	}
 
 	/* if stream allocation is enabled, use global goal */
-	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
+	if ((ac->ac_flags & EXT4_MB_STREAM_ALLOC)) {
 		/* TBD: may be hot point */
 		spin_lock(&sbi->s_md_lock);
-		ac->ac_g_ex.fe_group = sbi->s_mb_last_group;
-		ac->ac_g_ex.fe_start = sbi->s_mb_last_start;
+		ac->ac_g_ex.fe_group = sbi->s_mb_last_group[numa_node];
+		ac->ac_g_ex.fe_start = sbi->s_mb_last_start[numa_node];
 		spin_unlock(&sbi->s_md_lock);
 	}
 
@@ -2677,7 +2694,19 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	 * cr == 0 try to get exact allocation,
 	 * cr == 3  try to get anything
 	 */
+
+	/* ADDITION */
+	// int numa_node = numa_node_id();
+	int nodes_unchecked=2;
+	ext4_group_t local_grp_0;
+	ext4_group_t local_grps;
 repeat:
+	// printk(KERN_INFO "IS THE NUMA NODE OK? -> (real) %d (inode goal group numa node) %d\n", numa_node_id(), numa_node);
+	int count = 0;
+	/* ADDITION */
+	local_grp_0 = numa_node*
+		((ngroups >> 1) + (ngroups % 2));
+	local_grps = (ngroups >> 1) + (1-numa_node)*(ngroups % 2);
 	for (; cr < 4 && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
 		ac->ac_criteria = cr;
 		/*
@@ -2688,10 +2717,13 @@ repeat:
 		ac->ac_last_optimal_group = group;
 		ac->ac_groups_linear_remaining = sbi->s_mb_max_linear_groups;
 		prefetch_grp = group;
-
-		for (i = 0; i < ngroups; group = next_linear_group(ac, group, ngroups),
+		for (i = 0; i < local_grps; group = next_linear_group(ac, group, local_grp_0, local_grps),
 			     i++) {
 			int ret = 0, new_cr;
+			count++;
+
+			//printk(KERN_INFO "Trying group %u (ngroups = %u / local_grp_0 = %u /\n local_grps = %u / cursed = %u)\n", 
+			//	group, ngroups, local_grp_0, local_grps, ac->ac_g_ex.fe_group);
 
 			cond_resched();
 
@@ -2750,13 +2782,16 @@ repeat:
 			}
 
 			ac->ac_groups_scanned++;
-			if (cr == 0)
+			if (cr == 0) {
 				ext4_mb_simple_scan_group(ac, &e4b);
+			}
 			else if (cr == 1 && sbi->s_stripe &&
-					!(ac->ac_g_ex.fe_len % sbi->s_stripe))
+					!(ac->ac_g_ex.fe_len % sbi->s_stripe)) {
 				ext4_mb_scan_aligned(ac, &e4b);
-			else
+			}
+			else {
 				ext4_mb_complex_scan_group(ac, &e4b);
+			}
 
 			ext4_unlock_group(sb, group);
 			ext4_mb_unload_buddy(&e4b);
@@ -2765,10 +2800,11 @@ repeat:
 				break;
 		}
 		/* Processed all groups and haven't found blocks */
-		if (sbi->s_mb_stats && i == ngroups)
+		if (sbi->s_mb_stats && i == local_grps)
 			atomic64_inc(&sbi->s_bal_cX_failed[cr]);
 	}
 
+	// WHAT HAPPENS HERE?
 	if (ac->ac_b_ex.fe_len > 0 && ac->ac_status != AC_STATUS_FOUND &&
 	    !(ac->ac_flags & EXT4_MB_HINT_FIRST)) {
 		/*
@@ -2787,16 +2823,28 @@ repeat:
 				 ac->ac_b_ex.fe_group, ac->ac_b_ex.fe_start,
 				 ac->ac_b_ex.fe_len, lost);
 
-			ac->ac_b_ex.fe_group = 0;
+			ac->ac_b_ex.fe_group = sbi->s_numa_info.first_group[numa_node];
 			ac->ac_b_ex.fe_start = 0;
 			ac->ac_b_ex.fe_len = 0;
 			ac->ac_status = AC_STATUS_CONTINUE;
 			ac->ac_flags |= EXT4_MB_HINT_FIRST;
 			cr = 3;
+			/* ADDITION */
+			group = local_grp_0;
 			goto repeat;
 		}
 	}
-
+	
+	/* ADDITION */ // search in local node failed miserably
+	nodes_unchecked--;
+	if((ac->ac_status == AC_STATUS_CONTINUE) && nodes_unchecked > 0) {
+		cr = ac->ac_2order ? 0 : 1;
+		numa_node = 1 - numa_node;
+		ac->numa_node = numa_node;
+		// printk(KERN_INFO "PLEASE GOD SAVE US: count = %d\n", count);
+		goto repeat;
+	}
+	
 	if (sbi->s_mb_stats && ac->ac_status == AC_STATUS_FOUND)
 		atomic64_inc(&sbi->s_bal_cX_hits[ac->ac_criteria]);
 out:
@@ -5538,8 +5586,9 @@ repeat:
 			ar->len = ac->ac_b_ex.fe_len;
 		}
 	} else {
-		if (ext4_mb_discard_preallocations_should_retry(sb, ac, &seq))
+		if (ext4_mb_discard_preallocations_should_retry(sb, ac, &seq)) {
 			goto repeat;
+		}
 		/*
 		 * If block allocation fails then the pa allocated above
 		 * needs to be freed here itself.

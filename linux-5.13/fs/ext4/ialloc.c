@@ -33,6 +33,10 @@
 
 #include <trace/events/ext4.h>
 
+/* ADDITION */
+#include <linux/topology.h>
+#include "numa.h"
+
 /*
  * ialloc.c contains the inodes allocation and deallocation routines
  */
@@ -436,8 +440,13 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	struct orlov_stats stats;
 	int flex_size = ext4_flex_bg_size(sbi);
 	struct dx_hash_info hinfo;
+	/* ADDITION */
+	struct ext4_numa_info *numa_info = &(sbi->s_numa_info);
+	int n, node, local_node;
+	int num_nodes = numa_info->num_nodes;
 
 	ngroups = real_ngroups;
+	/* ADDITION ? UNCHANGED FOR NOW */
 	if (flex_size > 1) {
 		ngroups = (real_ngroups + flex_size - 1) >>
 			sbi->s_log_groups_per_flex;
@@ -449,8 +458,11 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	freeb = EXT4_C2B(sbi,
 		percpu_counter_read_positive(&sbi->s_freeclusters_counter));
 	avefreec = freeb;
-	do_div(avefreec, ngroups);
+	do_div(avefreec, ngroups);	
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
+
+	/* ADDITION */
+	local_node = numa_node_id();
 
 	if (S_ISDIR(mode) &&
 	    ((parent == d_inode(sb->s_root)) ||
@@ -465,9 +477,11 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 			grp = hinfo.hash;
 		} else
 			grp = prandom_u32();
-		parent_group = (unsigned)grp % ngroups;
-		for (i = 0; i < ngroups; i++) {
-			g = (parent_group + i) % ngroups;
+		/* ADDITION */
+		// TODO: make a version of this function that is flex_group specific
+		parent_group = ext4_numa_map_any_block(sb, grp, local_node);
+		for (i = 0; i < numa_info->total_groups[local_node] ; i++) {
+			g = ext4_numa_map_block(sb, parent_group + i, local_node);
 			get_orlov_stats(sb, g, flex_size, &stats);
 			if (!stats.free_inodes)
 				continue;
@@ -519,14 +533,17 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	 * Start looking in the flex group where we last allocated an
 	 * inode for this parent directory
 	 */
-	if (EXT4_I(parent)->i_last_alloc_group != ~0) {
-		parent_group = EXT4_I(parent)->i_last_alloc_group;
+	// Should we have a i_last_alloc_group for each numa node?
+	if (EXT4_I(parent)->i_last_alloc_group[local_node] != ~0) {
+		parent_group = EXT4_I(parent)->i_last_alloc_group[local_node];
 		if (flex_size > 1)
 			parent_group >>= sbi->s_log_groups_per_flex;
 	}
 
-	for (i = 0; i < ngroups; i++) {
-		grp = (parent_group + i) % ngroups;
+	parent_group = ext4_numa_map_any_block(sb, parent_group, local_node);
+	for (i = 0; i < numa_info->total_groups[local_node]; i++) {
+		g = ext4_numa_map_block(sb, parent_group + i, local_node);
+		// g = local_grp_0 + (local_grps + parent_group + i - local_grp_0) % local_grps;
 		get_orlov_stats(sb, grp, flex_size, &stats);
 		if (stats.used_dirs >= max_dirs)
 			continue;
@@ -540,16 +557,24 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 fallback:
 	ngroups = real_ngroups;
 	avefreei = freei / ngroups;
+	// We must re-compute these given that we search each
+	// individual primitive group linearly (ie without taking 
+	// flex_groups into account)
+	// local_grps = (ngroups >> 1);
+	// local_grp_0 = local_numa_node*((ngroups >> 1) + (ngroups % 2));
 fallback_retry:
 	parent_group = EXT4_I(parent)->i_block_group;
-	for (i = 0; i < ngroups; i++) {
-		grp = (parent_group + i) % ngroups;
-		desc = ext4_get_group_desc(sb, grp, NULL);
-		if (desc) {
-			grp_free = ext4_free_inodes_count(sb, desc);
-			if (grp_free && grp_free >= avefreei) {
-				*group = grp;
-				return 0;
+	for_each_numa_node(n, node, local_node, num_nodes) {
+		grp = ext4_numa_map_any_block(sb, parent_group, local_node);
+		for (i = 0; i < numa_info->total_groups[node]; i++) {
+			grp = ext4_numa_map_block(sb, grp + i, local_node);
+			desc = ext4_get_group_desc(sb, grp, NULL);
+			if (desc) {
+				grp_free = ext4_free_inodes_count(sb, desc);
+				if (grp_free && grp_free >= avefreei) {
+					*group = grp;
+					return 0;
+				}
 			}
 		}
 	}
@@ -573,7 +598,13 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	ext4_group_t i, last, ngroups = ext4_get_groups_count(sb);
 	struct ext4_group_desc *desc;
 	int flex_size = ext4_flex_bg_size(EXT4_SB(sb));
+	/* ADDITION */
+	struct ext4_numa_info *numa_info = &(EXT4_SB(sb)->s_numa_info);
+	int n, node, local_node, group_node;
+	int num_nodes = numa_info->num_nodes;
 
+	local_node = numa_node_id();
+	
 	/*
 	 * Try to place the inode is the same flex group as its
 	 * parent.  If we can't find space, use the Orlov algorithm to
@@ -581,6 +612,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 * parent directory's inode information so that use that flex
 	 * group for future allocations.
 	 */
+	/* ADDITION ? UNCHANGED FOR NOW */
 	if (flex_size > 1) {
 		int retry = 0;
 
@@ -596,9 +628,9 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 				return 0;
 			}
 		}
-		if (!retry && EXT4_I(parent)->i_last_alloc_group != ~0) {
+		if (!retry && EXT4_I(parent)->i_last_alloc_group[local_node] != ~0) {
 			retry = 1;
-			parent_group = EXT4_I(parent)->i_last_alloc_group;
+			parent_group = EXT4_I(parent)->i_last_alloc_group[local_node];
 			goto try_again;
 		}
 		/*
@@ -617,8 +649,12 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 */
 	*group = parent_group;
 	desc = ext4_get_group_desc(sb, *group, NULL);
+	/* ADDITION */
+	group_node = ext4_numa_bg_node(sb, *group);
 	if (desc && ext4_free_inodes_count(sb, desc) &&
-	    ext4_free_group_clusters(sb, desc))
+	    ext4_free_group_clusters(sb, desc) &&
+	    // We want the parent to reside in the local node
+	    local_node == group_node)
 		return 0;
 
 	/*
@@ -630,33 +666,34 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 *
 	 * So add our directory's i_ino into the starting point for the hash.
 	 */
-	*group = (*group + parent->i_ino) % ngroups;
 
 	/*
 	 * Use a quadratic hash to find a group with a free inode and some free
 	 * blocks.
 	 */
-	for (i = 1; i < ngroups; i <<= 1) {
-		*group += i;
-		if (*group >= ngroups)
-			*group -= ngroups;
+	/* ADDITION */
+	*group = ext4_numa_map_any_block(sb, (*group + parent->i_ino), local_node);
+	for (i = 1; i < numa_info->total_groups[local_node]; i <<= 1) {
+		*group = ext4_numa_map_block(sb, (*group + i), local_node);
 		desc = ext4_get_group_desc(sb, *group, NULL);
 		if (desc && ext4_free_inodes_count(sb, desc) &&
-		    ext4_free_group_clusters(sb, desc))
+		    ext4_free_group_clusters(sb, desc)) {
 			return 0;
+		}
 	}
 
 	/*
 	 * That failed: try linear search for a free inode, even if that group
 	 * has no free blocks.
 	 */
-	*group = parent_group;
-	for (i = 0; i < ngroups; i++) {
-		if (++*group >= ngroups)
-			*group = 0;
-		desc = ext4_get_group_desc(sb, *group, NULL);
-		if (desc && ext4_free_inodes_count(sb, desc))
-			return 0;
+	for_each_numa_node(n, node, local_node, num_nodes) {
+		*group = ext4_numa_map_any_block(sb, parent_group, node);
+		for (i = 0; i < numa_info->total_groups[node]; i++) {
+			*group = ext4_numa_map_block(sb, (*group + 1), node);
+			desc = ext4_get_group_desc(sb, *group, NULL);
+			if (desc && ext4_free_inodes_count(sb, desc))
+				return 0;
+		}
 	}
 
 	return -1;
@@ -1002,7 +1039,7 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 		nblocks += ret2;
 	}
 
-	if (!goal)
+	// if (!goal)
 		goal = sbi->s_inode_goal;
 
 	if (goal && goal <= le32_to_cpu(sbi->s_es->s_inodes_count)) {
@@ -1018,7 +1055,7 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 		ret2 = find_group_other(sb, dir, &group, mode);
 
 got_group:
-	EXT4_I(dir)->i_last_alloc_group = group;
+	EXT4_I(dir)->i_last_alloc_group[numa_node_id()] = group;
 	err = -ENOSPC;
 	if (ret2 == -1)
 		goto out;
@@ -1120,6 +1157,7 @@ next_group:
 	goto out;
 
 got:
+	// printk(KERN_INFO "IALLOC: (inode %lu) got group %u [numa_node_id = %d]\n", ino, group, numa_node_id());
 	BUFFER_TRACE(inode_bitmap_bh, "call ext4_handle_dirty_metadata");
 	err = ext4_handle_dirty_metadata(handle, NULL, inode_bitmap_bh);
 	if (err) {
@@ -1259,7 +1297,9 @@ got:
 	ei->i_file_acl = 0;
 	ei->i_dtime = 0;
 	ei->i_block_group = group;
-	ei->i_last_alloc_group = ~0;
+	// Bad solution
+	ei->i_last_alloc_group[0] = ~0;
+	ei->i_last_alloc_group[1] = ~0;
 
 	ext4_set_inode_flags(inode, true);
 	if (IS_DIRSYNC(inode))

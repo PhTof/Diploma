@@ -46,6 +46,8 @@
 #include <linux/part_stat.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+/* ADDITION */
+//#include "numa.h"
 
 #include "ext4.h"
 #include "ext4_extents.h"	/* Needed for trace points definition */
@@ -57,6 +59,9 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
+
+/* ADDITION */
+// extern struct mapped_device *dm_get_md(dev_t dev);
 
 static struct ext4_lazy_init *ext4_li_info;
 static DEFINE_MUTEX(ext4_li_mtx);
@@ -5130,6 +5135,8 @@ no_journal:
 	ratelimit_state_init(&sbi->s_msg_ratelimit_state, 5 * HZ, 10);
 	atomic_set(&sbi->s_warning_count, 0);
 	atomic_set(&sbi->s_msg_count, 0);
+
+	ext4_numa_super_init(sbi);
 
 	kfree(orig_data);
 	return 0;
