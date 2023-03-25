@@ -2,6 +2,8 @@
 /* ADDITION */
 #include <linux/printk.h>
 
+int ext4_numa = 0;
+
 int ext4_numa_bg_node(struct super_block *sb, ext4_group_t g)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);

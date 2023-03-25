@@ -510,6 +510,47 @@ static struct kobject *ext4_root;
 
 static struct kobject *ext4_feat;
 
+
+ssize_t ext4_numa_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
+{
+  char *_buf;
+	int retval = len;
+
+	_buf = kmalloc(len, GFP_KERNEL);
+	if (_buf == NULL)  {
+		retval = -ENOMEM;
+		goto out;
+	}
+	if (copy_from_user(_buf, buf, len)) {
+		retval = -EFAULT;
+		goto out;
+	}
+	_buf[len] = 0;
+	sscanf(_buf, "%i", &ext4_numa);
+
+out:
+  return retval;
+}
+
+static int ext4_numa_show(struct seq_file *seq, void *v)
+{
+	seq_printf(seq, "%i\n", ext4_numa);
+	return 0;
+}
+
+static int ext4_numa_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ext4_numa_show, PDE_DATA(inode));
+}
+
+static const struct proc_ops ext4_numa_fops = {
+	.proc_open		= ext4_numa_open,
+	.proc_read		= seq_read,
+	.proc_write		= ext4_numa_write,
+	.proc_lseek		= seq_lseek,
+	.proc_release	= single_release,
+};
+
 int ext4_register_sysfs(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -534,6 +575,9 @@ int ext4_register_sysfs(struct super_block *sb)
 				sb);
 		proc_create_single_data("fc_info", 0444, sbi->s_proc,
 					ext4_fc_info_show, sb);
+
+		proc_create_data("numa", 0666, sbi->s_proc, &ext4_numa_fops, sb);
+
 		proc_create_seq_data("mb_groups", S_IRUGO, sbi->s_proc,
 				&ext4_mb_seq_groups_ops, sb);
 		proc_create_single_data("mb_stats", 0444, sbi->s_proc,
