@@ -444,6 +444,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	struct ext4_numa_info *numa_info = &(sbi->s_numa_info);
 	int n, node, local_node;
 	int num_nodes = numa_info->num_nodes;
+	ext4_group_t n_node_groups;
 
 	ngroups = real_ngroups;
 	/* ADDITION ? UNCHANGED FOR NOW */
@@ -463,6 +464,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 
 	/* ADDITION */
 	local_node = numa_node_id();
+	n_node_groups = ext4_numa_num_groups(sb, local_node);
 
 	if (S_ISDIR(mode) &&
 	    ((parent == d_inode(sb->s_root)) ||
@@ -480,7 +482,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 		/* ADDITION */
 		// TODO: make a version of this function that is flex_group specific
 		parent_group = ext4_numa_map_any_block(sb, grp, local_node);
-		for (i = 0; i < numa_info->total_groups[local_node] ; i++) {
+		for (i = 0; i < n_node_groups ; i++) {
 			g = ext4_numa_map_block(sb, parent_group + i, local_node);
 			get_orlov_stats(sb, g, flex_size, &stats);
 			if (!stats.free_inodes)
@@ -534,6 +536,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	 * inode for this parent directory
 	 */
 	// Should we have a i_last_alloc_group for each numa node?
+	// TODO: i_last_alloc_group may belong to another node
 	if (EXT4_I(parent)->i_last_alloc_group[local_node] != ~0) {
 		parent_group = EXT4_I(parent)->i_last_alloc_group[local_node];
 		if (flex_size > 1)
@@ -541,7 +544,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	}
 
 	parent_group = ext4_numa_map_any_block(sb, parent_group, local_node);
-	for (i = 0; i < numa_info->total_groups[local_node]; i++) {
+	for (i = 0; i < n_node_groups; i++) {
 		g = ext4_numa_map_block(sb, parent_group + i, local_node);
 		// g = local_grp_0 + (local_grps + parent_group + i - local_grp_0) % local_grps;
 		get_orlov_stats(sb, grp, flex_size, &stats);
@@ -565,9 +568,10 @@ fallback:
 fallback_retry:
 	parent_group = EXT4_I(parent)->i_block_group;
 	for_each_numa_node(n, node, local_node, num_nodes) {
-		grp = ext4_numa_map_any_block(sb, parent_group, local_node);
-		for (i = 0; i < numa_info->total_groups[node]; i++) {
-			grp = ext4_numa_map_block(sb, grp + i, local_node);
+		grp = ext4_numa_map_any_block(sb, parent_group, node);
+		n_node_groups = ext4_numa_num_groups(sb, node);
+		for (i = 0; i < n_node_groups; i++) {
+			grp = ext4_numa_map_block(sb, parent_group + i, local_node);
 			desc = ext4_get_group_desc(sb, grp, NULL);
 			if (desc) {
 				grp_free = ext4_free_inodes_count(sb, desc);
@@ -602,8 +606,10 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	struct ext4_numa_info *numa_info = &(EXT4_SB(sb)->s_numa_info);
 	int n, node, local_node, group_node;
 	int num_nodes = numa_info->num_nodes;
+	ext4_group_t n_node_groups;
 
 	local_node = numa_node_id();
+	n_node_groups = ext4_numa_num_groups(sb, local_node);
 	
 	/*
 	 * Try to place the inode is the same flex group as its
@@ -673,7 +679,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 */
 	/* ADDITION */
 	*group = ext4_numa_map_any_block(sb, (*group + parent->i_ino), local_node);
-	for (i = 1; i < numa_info->total_groups[local_node]; i <<= 1) {
+	for (i = 1; i < n_node_groups; i <<= 1) {
 		*group = ext4_numa_map_block(sb, (*group + i), local_node);
 		desc = ext4_get_group_desc(sb, *group, NULL);
 		if (desc && ext4_free_inodes_count(sb, desc) &&
@@ -688,7 +694,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	 */
 	for_each_numa_node(n, node, local_node, num_nodes) {
 		*group = ext4_numa_map_any_block(sb, parent_group, node);
-		for (i = 0; i < numa_info->total_groups[node]; i++) {
+		n_node_groups = ext4_numa_num_groups(sb, node);
+		for (i = 0; i < n_node_groups; i++) {
 			*group = ext4_numa_map_block(sb, (*group + 1), node);
 			desc = ext4_get_group_desc(sb, *group, NULL);
 			if (desc && ext4_free_inodes_count(sb, desc))

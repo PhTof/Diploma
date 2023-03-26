@@ -719,7 +719,7 @@ struct inode {
 
 	void			*i_private; /* fs or device private pointer */
 
-  int nid; //nasty hack to get dax device numa id 
+  	int nid; //nasty hack to get dax device numa id 
 
 } __randomize_layout;
 

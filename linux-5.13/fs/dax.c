@@ -1114,9 +1114,9 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	size_t xfer;
 	int id;
 
-  //propagating nid
-  int nid = dax_get_numa_node(dax_dev);
-  inode->nid = nid;
+	//propagating nid
+	//int nid = dax_get_numa_node(dax_dev);
+	//inode->nid = nid;
 
 	if (iov_iter_rw(iter) == READ) {
 		end = min(end, i_size_read(inode));

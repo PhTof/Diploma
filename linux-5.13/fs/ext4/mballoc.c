@@ -1009,7 +1009,7 @@ static inline int should_optimize_scan(struct ext4_allocation_context *ac)
  * performed, this function just returns the same group
  */
 static int
-next_linear_group(struct ext4_allocation_context *ac, int group, int first_group, int ngroups)
+next_linear_group(struct ext4_allocation_context *ac, int group, int numa)
 {
 	if (!should_optimize_scan(ac))
 		goto inc_and_return;
@@ -1033,7 +1033,7 @@ inc_and_return:
 
 	/* ADDITION */
 	// Assumption: group belongs to [first_group, first_group + ngroups]
-	return first_group + (ngroups + (group + 1) - first_group) % ngroups;
+	return ext4_numa_map_block(ac->ac_sb, (group + 1), numa);
 	// return group + 1 >= ngroups ? 0 : group + 1;
 }
 
@@ -2632,18 +2632,18 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	struct super_block *sb;
 	struct ext4_buddy e4b;
 	int lost;
-	int numa_node, nodes_unchecked;
-	ext4_group_t local_grp_0;
-	ext4_group_t local_grps;
+	/* ADDITION */
+	int nodes_unchecked;
+	ext4_group_t last_group, n_node_groups;
+	int num_nodes;
 
 	// Does this run from a fixed kernel worker thread?
 	// dump_stack();
-	numa_node = ext4_numa_bg_node(ac->ac_sb, ac->ac_g_ex.fe_group);
-	ac->numa_node = numa_node;
 
 	sb = ac->ac_sb;
 	sbi = EXT4_SB(sb);
 	ngroups = ext4_get_groups_count(sb);
+	num_nodes = sbi->s_numa_info.num_nodes;
 	/* non-extent files are limited to low blocks/groups */
 	if (!(ext4_test_inode_flag(ac->ac_inode, EXT4_INODE_EXTENTS)))
 		ngroups = sbi->s_blockfile_groups;
@@ -2686,30 +2686,32 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	// contained in another NUMA node's memory, it should
 	// be fixed with a simple if statement, but it needs
 	// some testing first
-	if ((ac->ac_flags & EXT4_MB_STREAM_ALLOC) & 0) {
-		/* TBD: may be hot point */
-		spin_lock(&sbi->s_md_lock);
-		ac->ac_g_ex.fe_group = sbi->s_mb_last_group[numa_node];
-		ac->ac_g_ex.fe_start = sbi->s_mb_last_start[numa_node];
-		spin_unlock(&sbi->s_md_lock);
+	last_group = sbi->s_mb_last_group[ac->numa_node];
+
+	if (ext4_numa_bg_node(sb, last_group) != ac->numa_node) {
+		// printk(KERN_INFO "How can we avoid this?\n");
 	}
 
+	if ((ac->ac_flags & EXT4_MB_STREAM_ALLOC) &&
+	    (ext4_numa_bg_node(sb, last_group) == ac->numa_node)) {
+		/* TBD: may be hot point */
+		spin_lock(&sbi->s_md_lock);
+		ac->ac_g_ex.fe_group = last_group;
+		ac->ac_g_ex.fe_start = sbi->s_mb_last_start[ac->numa_node];
+		spin_unlock(&sbi->s_md_lock);
+	}
+	
 	/* Let's just scan groups to find more-less suitable blocks */
 	cr = ac->ac_2order ? 0 : 1;
 	/*
 	 * cr == 0 try to get exact allocation,
 	 * cr == 3  try to get anything
 	 */
-
-	/* ADDITION */
-	// int numa_node = numa_node_id();
-	nodes_unchecked=2;
+	nodes_unchecked = ext4_numa_num_nodes(sb);
 repeat:
-	// printk(KERN_INFO "IS THE NUMA NODE OK? -> (real) %d (inode goal group numa node) %d\n", numa_node_id(), numa_node);
+	// printk(KERN_INFO "IS THE NUMA NODE OK? -> (real) %d (inode goal group numa node) %d\n", numa_node_id(), ac->numa_node);
 	/* ADDITION */
-	local_grp_0 = numa_node*
-		((ngroups >> 1) + (ngroups % 2));
-	local_grps = (ngroups >> 1) + (1-numa_node)*(ngroups % 2);
+	n_node_groups = ext4_numa_num_groups(sb, ac->numa_node);
 	for (; cr < 4 && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
 		ac->ac_criteria = cr;
 		/*
@@ -2720,15 +2722,15 @@ repeat:
 		ac->ac_last_optimal_group = group;
 		ac->ac_groups_linear_remaining = sbi->s_mb_max_linear_groups;
 		prefetch_grp = group;
-		for (i = 0; i < local_grps; group = next_linear_group(ac, group, local_grp_0, local_grps),
+		for (i = 0; i < n_node_groups; group = next_linear_group(ac, group, ac->numa_node),
 			     i++) {
 			int ret = 0, new_cr;
 
-			//printk(KERN_INFO "Trying group %u (ngroups = %u / local_grp_0 = %u /\n local_grps = %u / cursed = %u)\n", 
-			//	group, ngroups, local_grp_0, local_grps, ac->ac_g_ex.fe_group);
+			// printk(KERN_INFO "Trying group %u\n", group);
 
 			cond_resched();
 
+			// TODO: See what can affect NUMA locality in this path
 			ext4_mb_choose_next_group(ac, &new_cr, &group, ngroups);
 			if (new_cr != cr) {
 				cr = new_cr;
@@ -2784,16 +2786,13 @@ repeat:
 			}
 
 			ac->ac_groups_scanned++;
-			if (cr == 0) {
+			if (cr == 0)
 				ext4_mb_simple_scan_group(ac, &e4b);
-			}
 			else if (cr == 1 && sbi->s_stripe &&
-					!(ac->ac_g_ex.fe_len % sbi->s_stripe)) {
+					!(ac->ac_g_ex.fe_len % sbi->s_stripe))
 				ext4_mb_scan_aligned(ac, &e4b);
-			}
-			else {
+			else
 				ext4_mb_complex_scan_group(ac, &e4b);
-			}
 
 			ext4_unlock_group(sb, group);
 			ext4_mb_unload_buddy(&e4b);
@@ -2802,7 +2801,7 @@ repeat:
 				break;
 		}
 		/* Processed all groups and haven't found blocks */
-		if (sbi->s_mb_stats && i == local_grps)
+		if (sbi->s_mb_stats && i == n_node_groups)
 			atomic64_inc(&sbi->s_bal_cX_failed[cr]);
 	}
 
@@ -2825,24 +2824,20 @@ repeat:
 				 ac->ac_b_ex.fe_group, ac->ac_b_ex.fe_start,
 				 ac->ac_b_ex.fe_len, lost);
 
-			ac->ac_b_ex.fe_group = sbi->s_numa_info.first_group[numa_node];
+			ac->ac_b_ex.fe_group = sbi->s_numa_info.first_group[ac->numa_node];
 			ac->ac_b_ex.fe_start = 0;
 			ac->ac_b_ex.fe_len = 0;
 			ac->ac_status = AC_STATUS_CONTINUE;
 			ac->ac_flags |= EXT4_MB_HINT_FIRST;
 			cr = 3;
-			/* ADDITION */
-			group = local_grp_0;
 			goto repeat;
 		}
 	}
 	
 	/* ADDITION */ // search in local node failed miserably
-	nodes_unchecked--;
-	if((ac->ac_status == AC_STATUS_CONTINUE) && nodes_unchecked > 0) {
+	if((ac->ac_status == AC_STATUS_CONTINUE) && (--nodes_unchecked) > 0) {
 		cr = ac->ac_2order ? 0 : 1;
-		numa_node = 1 - numa_node;
-		ac->numa_node = numa_node;
+		ac->numa_node = ext4_numa_next_node(ac->numa_node, num_nodes);
 		// printk(KERN_INFO "PLEASE GOD SAVE US\n");
 		goto repeat;
 	}
@@ -5169,6 +5164,7 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 	mutex_lock(&ac->ac_lg->lg_mutex);
 }
 
+/* ADDITION */
 static noinline_for_stack int
 ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 				struct ext4_allocation_request *ar)
@@ -5206,6 +5202,9 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_o_ex.fe_len = len;
 	ac->ac_g_ex = ac->ac_o_ex;
 	ac->ac_flags = ar->flags;
+	// Retrieve the wanted NUMA node from the 
+	// allocation request goal
+	ac->numa_node = ext4_numa_bg_node(sb, ac->ac_g_ex.fe_group);
 
 	/* we have to define context: we'll work with a file or
 	 * locality group. this is a policy, actually */
