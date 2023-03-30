@@ -2838,7 +2838,6 @@ repeat:
 	if((ac->ac_status == AC_STATUS_CONTINUE) && (--nodes_unchecked) > 0) {
 		cr = ac->ac_2order ? 0 : 1;
 		ac->numa_node = ext4_numa_next_node(ac->numa_node, num_nodes);
-		// printk(KERN_INFO "PLEASE GOD SAVE US\n");
 		goto repeat;
 	}
 	
