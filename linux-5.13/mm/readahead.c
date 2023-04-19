@@ -108,6 +108,8 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 			break;
 		}
 		task_io_account_read(PAGE_SIZE);
+		// WARN: Cannot be correct
+		task_numa_io_account_read(mapping->host->nid, PAGE_SIZE);
 	}
 	return ret;
 }

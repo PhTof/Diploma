@@ -26,6 +26,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/iomap.h>
 #include <asm/pgalloc.h>
+#include <linux/task_io_accounting_ops.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/fs_dax.h>
@@ -1232,14 +1233,15 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 				iter, dax_iomap_actor);
 		if (ret <= 0)
 			break;
+
+		if (iov_iter_rw(iter) == WRITE) {
+			task_numa_io_account_write(inode->nid, ret);
+		} else {
+			task_numa_io_account_read(inode->nid, ret);
+		}
 		pos += ret;
 		done += ret;
 	}
-
-  /*
-   *You can now find in indoe->nid new attribute the numa node
-   */
-  int nid = inode->nid; // in theory this is the numa node
 
 	iocb->ki_pos += done;
 	return done ? done : ret;

@@ -233,6 +233,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int nr_pages)
 {
 	struct file *file = iocb->ki_filp;
+	struct inode *inode = bdev_file_inode(file);
 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
 	struct bio_vec inline_vecs[DIO_INLINE_BIO_VECS], *vecs;
 	loff_t pos = iocb->ki_pos;
@@ -274,6 +275,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	} else {
 		bio.bi_opf = dio_bio_write_op(iocb);
 		task_io_account_write(ret);
+		task_numa_io_account_write(inode->nid, ret);
 	}
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		bio.bi_opf |= REQ_NOWAIT;
@@ -429,6 +431,9 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		} else {
 			bio->bi_opf = dio_bio_write_op(iocb);
 			task_io_account_write(bio->bi_iter.bi_size);
+			task_numa_io_account_write(
+				inode->nid,
+				bio->bi_iter.bi_size);
 		}
 		if (iocb->ki_flags & IOCB_NOWAIT)
 			bio->bi_opf |= REQ_NOWAIT;

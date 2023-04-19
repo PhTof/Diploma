@@ -13,6 +13,11 @@ static inline void task_io_account_read(size_t bytes)
 	current->ioac.read_bytes += bytes;
 }
 
+static inline void task_numa_io_account_read(int numa_node, size_t bytes)
+{
+	current->ioac.numa_read_bytes[numa_node] += bytes;
+}
+
 /*
  * We approximate number of blocks, because we account bytes only.
  * A 'block' is 512 bytes
@@ -25,6 +30,11 @@ static inline unsigned long task_io_get_inblock(const struct task_struct *p)
 static inline void task_io_account_write(size_t bytes)
 {
 	current->ioac.write_bytes += bytes;
+}
+
+static inline void task_numa_io_account_write(int numa_node, size_t bytes)
+{
+	current->ioac.numa_write_bytes[numa_node] += bytes;
 }
 
 /*
@@ -105,10 +115,25 @@ static inline void task_chr_io_accounting_add(struct task_io_accounting *dst,
 }
 #endif /* CONFIG_TASK_XACCT */
 
+/* ADDITION */
+#define NUM_NUMA_NODES 2
+static inline void task_numa_io_accounting_add(struct task_io_accounting *dst,
+						struct task_io_accounting *src)
+{
+	int i;
+	for(i = 0; i < NUM_NUMA_NODES; i++) {
+		dst->numa_read_bytes[i] += src->numa_read_bytes[i];
+		dst->numa_write_bytes[i] += src->numa_write_bytes[i];
+	}
+}
+#undef NUM_NUMA_NODES
+
 static inline void task_io_accounting_add(struct task_io_accounting *dst,
 						struct task_io_accounting *src)
 {
 	task_chr_io_accounting_add(dst, src);
 	task_blk_io_accounting_add(dst, src);
+	task_numa_io_accounting_add(dst, src);
 }
+
 #endif /* __TASK_IO_ACCOUNTING_OPS_INCLUDED */

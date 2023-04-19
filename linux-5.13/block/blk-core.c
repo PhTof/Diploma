@@ -1064,6 +1064,8 @@ EXPORT_SYMBOL(submit_bio_noacct);
  */
 blk_qc_t submit_bio(struct bio *bio)
 {
+	int node_id = dev_to_node(&bio->bi_bdev->bd_device);
+
 	if (blkcg_punt_bio_submit(bio))
 		return BLK_QC_T_NONE;
 
@@ -1084,6 +1086,7 @@ blk_qc_t submit_bio(struct bio *bio)
 			count_vm_events(PGPGOUT, count);
 		} else {
 			task_io_account_read(bio->bi_iter.bi_size);
+			task_numa_io_account_read(node_id, bio->bi_iter.bi_size);
 			count_vm_events(PGPGIN, count);
 		}
 

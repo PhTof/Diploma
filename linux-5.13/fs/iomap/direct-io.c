@@ -329,6 +329,7 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 		n = bio->bi_iter.bi_size;
 		if (dio->flags & IOMAP_DIO_WRITE) {
 			task_io_account_write(n);
+			task_numa_io_account_write(inode->nid, n);
 		} else {
 			if (dio->flags & IOMAP_DIO_DIRTY)
 				bio_set_pages_dirty(bio);

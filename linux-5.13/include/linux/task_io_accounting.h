@@ -27,12 +27,14 @@ struct task_io_accounting {
 	 * storage.
 	 */
 	u64 read_bytes;
+	u64 numa_read_bytes[2];
 
 	/*
 	 * The number of bytes which this task has caused, or shall cause to be
 	 * written to disk.
 	 */
 	u64 write_bytes;
+	u64 numa_write_bytes[2];
 
 	/*
 	 * A task can cause "negative" IO too.  If this task truncates some

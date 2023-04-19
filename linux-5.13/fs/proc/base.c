@@ -2936,7 +2936,47 @@ static const struct file_operations proc_coredump_filter_operations = {
 #endif
 
 #ifdef CONFIG_TASK_IO_ACCOUNTING
-static int do_io_accounting(struct task_struct *task, struct seq_file *m, int whole)
+
+static inline void io_accounting_print_numa(
+	struct seq_file *m,
+	struct task_io_accounting acct)
+{
+	seq_printf(m,
+		   "numa0_read_bytes: %llu\n"
+		   "numa0_write_bytes: %llu\n"
+		   "numa1_read_bytes: %llu\n"
+		   "numa1_write_bytes: %llu\n",
+		   (unsigned long long)acct.numa_read_bytes[0],
+		   (unsigned long long)acct.numa_write_bytes[0],
+		   (unsigned long long)acct.numa_read_bytes[1],
+		   (unsigned long long)acct.numa_write_bytes[1]);
+}
+
+static inline void io_accounting_print(
+	struct seq_file *m,
+	struct task_io_accounting acct)
+{
+	seq_printf(m,
+		   "rchar: %llu\n"
+		   "wchar: %llu\n"
+		   "syscr: %llu\n"
+		   "syscw: %llu\n"
+		   "read_bytes: %llu\n"
+		   "write_bytes: %llu\n"
+		   "cancelled_write_bytes: %llu\n",
+		   (unsigned long long)acct.rchar,
+		   (unsigned long long)acct.wchar,
+		   (unsigned long long)acct.syscr,
+		   (unsigned long long)acct.syscw,
+		   (unsigned long long)acct.read_bytes,
+		   (unsigned long long)acct.write_bytes,
+		   (unsigned long long)acct.cancelled_write_bytes);
+}
+
+static int do_io_accounting(
+		struct task_struct *task,
+		struct seq_file *m,
+		int whole, int print_numa)
 {
 	struct task_io_accounting acct = task->ioac;
 	unsigned long flags;
@@ -2960,21 +3000,12 @@ static int do_io_accounting(struct task_struct *task, struct seq_file *m, int wh
 
 		unlock_task_sighand(task, &flags);
 	}
-	seq_printf(m,
-		   "rchar: %llu\n"
-		   "wchar: %llu\n"
-		   "syscr: %llu\n"
-		   "syscw: %llu\n"
-		   "read_bytes: %llu\n"
-		   "write_bytes: %llu\n"
-		   "cancelled_write_bytes: %llu\n",
-		   (unsigned long long)acct.rchar,
-		   (unsigned long long)acct.wchar,
-		   (unsigned long long)acct.syscr,
-		   (unsigned long long)acct.syscw,
-		   (unsigned long long)acct.read_bytes,
-		   (unsigned long long)acct.write_bytes,
-		   (unsigned long long)acct.cancelled_write_bytes);
+
+	if (print_numa)
+		io_accounting_print_numa(m, acct);
+	else
+		io_accounting_print(m, acct);
+
 	result = 0;
 
 out_unlock:
@@ -2985,14 +3016,27 @@ out_unlock:
 static int proc_tid_io_accounting(struct seq_file *m, struct pid_namespace *ns,
 				  struct pid *pid, struct task_struct *task)
 {
-	return do_io_accounting(task, m, 0);
+	return do_io_accounting(task, m, 0, 0);
 }
 
 static int proc_tgid_io_accounting(struct seq_file *m, struct pid_namespace *ns,
 				   struct pid *pid, struct task_struct *task)
 {
-	return do_io_accounting(task, m, 1);
+	return do_io_accounting(task, m, 1, 0);
 }
+
+static int proc_tid_numa_io_accounting(struct seq_file *m, struct pid_namespace *ns,
+				   struct pid *pid, struct task_struct *task)
+{
+	return do_io_accounting(task, m, 0, 1);
+}
+
+static int proc_tgid_numa_io_accounting(struct seq_file *m, struct pid_namespace *ns,
+				   struct pid *pid, struct task_struct *task)
+{
+	return do_io_accounting(task, m, 1, 1);
+}
+
 #endif /* CONFIG_TASK_IO_ACCOUNTING */
 
 #ifdef CONFIG_USER_NS
@@ -3255,6 +3299,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 	ONE("io",	S_IRUSR, proc_tgid_io_accounting),
+	ONE("numa_io",	S_IRUSR, proc_tgid_numa_io_accounting),
 #endif
 #ifdef CONFIG_USER_NS
 	REG("uid_map",    S_IRUGO|S_IWUSR, proc_uid_map_operations),
@@ -3596,6 +3641,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 	ONE("io",	S_IRUSR, proc_tid_io_accounting),
 #endif
+	ONE("numa_io",	S_IRUSR, proc_tid_numa_io_accounting),
 #ifdef CONFIG_USER_NS
 	REG("uid_map",    S_IRUGO|S_IWUSR, proc_uid_map_operations),
 	REG("gid_map",    S_IRUGO|S_IWUSR, proc_gid_map_operations),
