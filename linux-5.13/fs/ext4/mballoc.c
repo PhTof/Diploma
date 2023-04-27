@@ -1009,7 +1009,7 @@ static inline int should_optimize_scan(struct ext4_allocation_context *ac)
  * performed, this function just returns the same group
  */
 static int
-next_linear_group(struct ext4_allocation_context *ac, int group, int numa)
+next_linear_group(struct ext4_allocation_context *ac, int group, int numa, int ngroups)
 {
 	if (!should_optimize_scan(ac))
 		goto inc_and_return;
@@ -1033,7 +1033,7 @@ inc_and_return:
 
 	/* ADDITION */
 	// Assumption: group belongs to [first_group, first_group + ngroups]
-	return ext4_numa_map_block(ac->ac_sb, (group + 1), numa);
+	return ext4_numa_map_block(ac->ac_sb, (group + 1), numa, ngroups);
 	// return group + 1 >= ngroups ? 0 : group + 1;
 }
 
@@ -2722,7 +2722,7 @@ repeat:
 		ac->ac_last_optimal_group = group;
 		ac->ac_groups_linear_remaining = sbi->s_mb_max_linear_groups;
 		prefetch_grp = group;
-		for (i = 0; i < n_node_groups; group = next_linear_group(ac, group, ac->numa_node),
+		for (i = 0; i < n_node_groups; group = next_linear_group(ac, group, ac->numa_node, ngroups),
 			     i++) {
 			int ret = 0, new_cr;
 

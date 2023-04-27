@@ -483,7 +483,8 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 		// TODO: make a version of this function that is flex_group specific
 		parent_group = ext4_numa_map_any_block(sb, grp, local_node);
 		for (i = 0; i < n_node_groups ; i++) {
-			g = ext4_numa_map_block(sb, parent_group + i, local_node);
+			g = ext4_numa_map_block(sb, parent_group + i,
+				local_node, ngroups);
 			get_orlov_stats(sb, g, flex_size, &stats);
 			if (!stats.free_inodes)
 				continue;
@@ -545,7 +546,8 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 
 	parent_group = ext4_numa_map_any_block(sb, parent_group, local_node);
 	for (i = 0; i < n_node_groups; i++) {
-		g = ext4_numa_map_block(sb, parent_group + i, local_node);
+		g = ext4_numa_map_block(sb, parent_group + i,
+			local_node, ngroups);
 		// g = local_grp_0 + (local_grps + parent_group + i - local_grp_0) % local_grps;
 		get_orlov_stats(sb, grp, flex_size, &stats);
 		if (stats.used_dirs >= max_dirs)
@@ -571,7 +573,8 @@ fallback_retry:
 		grp = ext4_numa_map_any_block(sb, parent_group, node);
 		n_node_groups = ext4_numa_num_groups(sb, node);
 		for (i = 0; i < n_node_groups; i++) {
-			grp = ext4_numa_map_block(sb, parent_group + i, local_node);
+			grp = ext4_numa_map_block(sb, parent_group + i,
+				local_node, ngroups);
 			desc = ext4_get_group_desc(sb, grp, NULL);
 			if (desc) {
 				grp_free = ext4_free_inodes_count(sb, desc);
@@ -680,7 +683,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	/* ADDITION */
 	*group = ext4_numa_map_any_block(sb, (*group + parent->i_ino), local_node);
 	for (i = 1; i < n_node_groups; i <<= 1) {
-		*group = ext4_numa_map_block(sb, (*group + i), local_node);
+		*group = ext4_numa_map_block(sb, (*group + i),
+			local_node, ngroups);
 		desc = ext4_get_group_desc(sb, *group, NULL);
 		if (desc && ext4_free_inodes_count(sb, desc) &&
 		    ext4_free_group_clusters(sb, desc)) {
@@ -696,7 +700,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 		*group = ext4_numa_map_any_block(sb, parent_group, node);
 		n_node_groups = ext4_numa_num_groups(sb, node);
 		for (i = 0; i < n_node_groups; i++) {
-			*group = ext4_numa_map_block(sb, (*group + 1), node);
+			*group = ext4_numa_map_block(sb, (*group + 1), node, ngroups);
 			desc = ext4_get_group_desc(sb, *group, NULL);
 			if (desc && ext4_free_inodes_count(sb, desc))
 				return 0;

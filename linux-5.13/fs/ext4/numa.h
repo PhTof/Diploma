@@ -8,12 +8,11 @@
 // the stuff you need (in this case, I can not just
 // do #include "ext4.h", because the definition of 
 // ext4_sb_info depends on this header file)
-#define ext4_numa_map_block(sb, group, node) ({ 	\
-	struct ext4_sb_info *sbi = EXT4_SB(sb); 	\
-	ext4_numa_map_block_fast( 			\
-		&(sbi->s_numa_info), 			\
-		group, node,				\
-		sbi->s_groups_count); 			\
+#define ext4_numa_map_block(sb, group, node, ngroups) ({ 	\
+	struct ext4_sb_info *sbi = EXT4_SB(sb); 		\
+	ext4_numa_map_block_fast( 				\
+		&(sbi->s_numa_info), 				\
+		group, node, ngroups); 				\
 	})
 
 #define for_each_numa_node(_n, var_node, init_node, num_nodes) 	\
