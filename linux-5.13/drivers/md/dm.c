@@ -230,6 +230,10 @@ unsigned dm_get_reserved_bio_based_ios(void)
 }
 EXPORT_SYMBOL_GPL(dm_get_reserved_bio_based_ios);
 
+static int dm_dummy_get_numa_node(struct dax_device *dax_dev){
+	return 0;
+}
+
 static unsigned dm_get_numa_node(void)
 {
 	return __dm_get_module_param_int(&dm_numa_node,
@@ -3155,6 +3159,7 @@ static const struct dax_operations dm_dax_ops = {
 	.copy_from_iter = dm_dax_copy_from_iter,
 	.copy_to_iter = dm_dax_copy_to_iter,
 	.zero_page_range = dm_dax_zero_page_range,
+	.get_numa_node = dm_dummy_get_numa_node,
 };
 
 /*

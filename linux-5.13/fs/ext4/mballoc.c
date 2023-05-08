@@ -18,7 +18,6 @@
 #include <linux/backing-dev.h>
 #include <trace/events/ext4.h>
 /* ADDITION */
-#include <linux/topology.h>
 #include "numa.h"
 
 /*

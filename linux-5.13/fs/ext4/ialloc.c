@@ -34,7 +34,6 @@
 #include <trace/events/ext4.h>
 
 /* ADDITION */
-#include <linux/topology.h>
 #include "numa.h"
 
 /*
@@ -463,7 +462,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
 
 	/* ADDITION */
-	local_node = numa_node_id();
+	local_node = ext4_numa_node_id();
 	n_node_groups = ext4_numa_num_groups(sb, local_node);
 
 	if (S_ISDIR(mode) &&
@@ -611,7 +610,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	int num_nodes = numa_info->num_nodes;
 	ext4_group_t n_node_groups;
 
-	local_node = numa_node_id();
+	local_node = ext4_numa_node_id();
 	n_node_groups = ext4_numa_num_groups(sb, local_node);
 	
 	/*
@@ -1066,7 +1065,7 @@ struct inode *__ext4_new_inode(struct user_namespace *mnt_userns,
 		ret2 = find_group_other(sb, dir, &group, mode);
 
 got_group:
-	EXT4_I(dir)->i_last_alloc_group[numa_node_id()] = group;
+	EXT4_I(dir)->i_last_alloc_group[ext4_numa_node_id()] = group;
 	err = -ENOSPC;
 	if (ret2 == -1)
 		goto out;

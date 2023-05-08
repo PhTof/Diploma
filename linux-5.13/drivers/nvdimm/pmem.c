@@ -332,7 +332,7 @@ static const struct dax_operations pmem_dax_ops = {
 	.copy_from_iter = pmem_copy_from_iter,
 	.copy_to_iter = pmem_copy_to_iter,
 	.zero_page_range = pmem_dax_zero_page_range,
-  .get_numa_node = pmem_get_numa_node,
+	.get_numa_node = pmem_get_numa_node,
 };
 
 static const struct attribute_group *pmem_attribute_groups[] = {

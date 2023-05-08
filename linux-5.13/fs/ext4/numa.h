@@ -1,6 +1,7 @@
 #ifndef _EXT4_NUMA_H
 #define _EXT4_NUMA_H
 
+#include <linux/topology.h>
 #define EXT4_NUMA_NUM_NODES 2
 
 // I finally understood that definitions like this
@@ -34,6 +35,10 @@ extern ext4_group_t ext4_numa_num_groups(
 extern ext4_group_t ext4_numa_map_any_block(
 	struct super_block *sb, ext4_group_t group, int map_node);
 extern void ext4_numa_super_init(struct ext4_sb_info *sbi);
+
+static inline int ext4_numa_node_id(void) {
+	return ext4_numa_enabled() ? numa_node_id() : 0;
+}
 
 // We are mainly concerned with the case when 
 // group belongs to node or (node + 1), to achieve 
