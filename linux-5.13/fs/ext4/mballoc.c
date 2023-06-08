@@ -5200,9 +5200,8 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_o_ex.fe_len = len;
 	ac->ac_g_ex = ac->ac_o_ex;
 	ac->ac_flags = ar->flags;
-	// Retrieve the wanted NUMA node from the 
-	// allocation request goal
-	ac->numa_node = ext4_numa_bg_node(sb, ac->ac_g_ex.fe_group);
+	// TODO: Is this safe?
+	ac->numa_node = ext4_numa_node_id();
 
 	/* we have to define context: we'll work with a file or
 	 * locality group. this is a policy, actually */

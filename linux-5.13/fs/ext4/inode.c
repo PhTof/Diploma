@@ -6198,3 +6198,23 @@ vm_fault_t ext4_filemap_fault(struct vm_fault *vmf)
 
 	return ret;
 }
+
+sector_t ext4_page_sector(struct inode *inode, struct page *page) {
+	sector_t block;
+	const unsigned blkbits = inode->i_blkbits;
+	ext4_fsblk_t pblk = 0;
+	struct extent_status es;
+
+	block = (sector_t) page->index << (PAGE_SHIFT - blkbits);
+
+	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
+		return 0;
+
+	if(!ext4_es_lookup_extent(inode, block, NULL, &es))
+		return 0;
+
+	if (ext4_es_is_written(&es) || ext4_es_is_unwritten(&es))
+		pblk = ext4_es_pblock(&es) + block - es.es_lblk;
+
+	return pblk << (blkbits - 9);
+}

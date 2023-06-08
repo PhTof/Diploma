@@ -26,7 +26,7 @@ int ext4_numa_bg_node(struct super_block *sb, ext4_group_t g)
 	// something out of bounds
 	g = g % ngroups;
 	for(node = 0; node < num_nodes; node++)
-		if(first[node] <= g && g <= first[node] + total[node])
+		if(first[node] <= g && g < first[node] + total[node])
 			return node;
 
 	return 0;

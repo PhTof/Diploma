@@ -97,6 +97,14 @@ static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	 * Recheck under inode lock - at this point we are sure it cannot
 	 * change anymore
 	 */
+
+	// TODO: Make a function to examine the below condition
+	// and also check if the inode is mapped
+	if (IS_DAX(inode) && !ext4_test_inode_flag(inode, EXT4_INODE_DAX)) {
+		inode_set_flags(inode, 0, S_DAX);
+		ext4_set_aops(inode);
+	}
+
 	if (!IS_DAX(inode)) {
 		inode_unlock_shared(inode);
 		/* Fallback to buffered IO in case we cannot support DAX */
@@ -671,6 +679,13 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return -EIO;
 
 #ifdef CONFIG_FS_DAX
+	if (IS_DAX(inode) && !ext4_test_inode_flag(inode, EXT4_INODE_DAX)) {
+		inode_lock(inode);
+		inode_set_flags(inode, 0, S_DAX);
+		ext4_set_aops(inode);
+		inode_unlock(inode);
+	}
+
 	if (IS_DAX(inode))
 		return ext4_dax_write_iter(iocb, from);
 #endif
@@ -938,5 +953,6 @@ const struct inode_operations ext4_file_inode_operations = {
 	.fiemap		= ext4_fiemap,
 	.fileattr_get	= ext4_fileattr_get,
 	.fileattr_set	= ext4_fileattr_set,
+	.page_sector	= ext4_page_sector,
 };
 

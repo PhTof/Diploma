@@ -230,10 +230,6 @@ unsigned dm_get_reserved_bio_based_ios(void)
 }
 EXPORT_SYMBOL_GPL(dm_get_reserved_bio_based_ios);
 
-static int dm_dummy_get_numa_node(struct dax_device *dax_dev){
-	return 0;
-}
-
 static unsigned dm_get_numa_node(void)
 {
 	return __dm_get_module_param_int(&dm_numa_node,
@@ -1237,6 +1233,43 @@ static int dm_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 	dm_put_live_table(md, srcu_idx);
 
 	return ret;
+}
+
+static int dm_general_get_numa_node(struct mapped_device *md, sector_t sector, bool dax){
+	struct dm_target *ti;
+	struct dm_table *map;
+	long ret = 0;
+	int srcu_idx;
+
+	if (dax) {
+		ti = dm_dax_get_live_target(md, sector, &srcu_idx);
+	} else {
+		map = dm_get_live_table(md, &srcu_idx);
+		ti = dm_table_find_target(map, sector);
+	}
+
+	if (!ti)
+		goto out;
+
+	if (!ti->type->get_numa_node) {
+		goto out;
+	}
+
+	ret = ti->type->get_numa_node(ti);
+ out:
+	dm_put_live_table(md, srcu_idx);
+
+	return ret;
+}
+
+static int dm_blk_get_numa_node(struct block_device *blk_dev, sector_t sector){
+	struct mapped_device *md = blk_dev->bd_disk->private_data;
+	return dm_general_get_numa_node(md, sector, 0);
+}
+
+static int dm_dax_get_numa_node(struct dax_device *dax_dev, sector_t sector){
+	struct mapped_device *md = dax_get_private(dax_dev);
+	return dm_general_get_numa_node(md, sector, 1);
 }
 
 /*
@@ -3141,6 +3174,7 @@ static const struct block_device_operations dm_blk_dops = {
 	.getgeo = dm_blk_getgeo,
 	.report_zones = dm_blk_report_zones,
 	.pr_ops = &dm_pr_ops,
+	.get_numa_node = dm_blk_get_numa_node,
 	.owner = THIS_MODULE
 };
 
@@ -3159,7 +3193,7 @@ static const struct dax_operations dm_dax_ops = {
 	.copy_from_iter = dm_dax_copy_from_iter,
 	.copy_to_iter = dm_dax_copy_to_iter,
 	.zero_page_range = dm_dax_zero_page_range,
-	.get_numa_node = dm_dummy_get_numa_node,
+	.get_numa_node = dm_dax_get_numa_node,
 };
 
 /*

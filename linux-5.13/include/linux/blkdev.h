@@ -1863,6 +1863,8 @@ struct block_device_operations {
 	int (*report_zones)(struct gendisk *, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
 	char *(*devnode)(struct gendisk *disk, umode_t *mode);
+	int (*get_numa_node)(struct block_device *, sector_t);
+
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };
@@ -2015,5 +2017,29 @@ int fsync_bdev(struct block_device *bdev);
 
 int freeze_bdev(struct block_device *bdev);
 int thaw_bdev(struct block_device *bdev);
+
+// This is not good practice, but it is okay since with the userspace
+// component we choose to work on a device for which this is implemented
+static inline int blk_get_numa_node(struct block_device *bdev, sector_t sector)
+{
+	if (bdev->bd_disk->fops->get_numa_node)
+		return bdev->bd_disk->fops->get_numa_node(bdev, sector);
+
+	return 0;
+}
+
+static inline bool
+should_account_numa_io(struct inode *inode, struct page *page, int *node_id)
+{
+	sector_t sector;
+
+	if (!inode->i_sb->s_bdev || !inode->i_op->page_sector)
+		return false;
+
+	sector = inode->i_op->page_sector(inode, page);
+	*node_id = blk_get_numa_node(inode->i_sb->s_bdev, sector);
+	// page_sector func defaults to 0 when things go wrong
+	return (sector > 0);
+}
 
 #endif /* _LINUX_BLKDEV_H */

@@ -233,7 +233,6 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		unsigned int nr_pages)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = bdev_file_inode(file);
 	struct block_device *bdev = I_BDEV(bdev_file_inode(file));
 	struct bio_vec inline_vecs[DIO_INLINE_BIO_VECS], *vecs;
 	loff_t pos = iocb->ki_pos;
@@ -273,9 +272,11 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		if (iter_is_iovec(iter))
 			should_dirty = true;
 	} else {
+		int node_id = blk_get_numa_node(
+			bdev, bio.bi_iter.bi_sector);
 		bio.bi_opf = dio_bio_write_op(iocb);
 		task_io_account_write(ret);
-		task_numa_io_account_write(inode->nid, ret);
+		task_numa_io_account_write(node_id, ret);
 	}
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		bio.bi_opf |= REQ_NOWAIT;
@@ -381,7 +382,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	bool is_read = (iov_iter_rw(iter) == READ), is_sync;
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
-	int ret = 0;
+	int ret = 0, node_id;
 
 	if ((pos | iov_iter_alignment(iter)) &
 	    (bdev_logical_block_size(bdev) - 1))
@@ -429,11 +430,11 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			if (dio->should_dirty)
 				bio_set_pages_dirty(bio);
 		} else {
+			node_id = blk_get_numa_node(
+				bio->bi_bdev, bio->bi_iter.bi_sector);
 			bio->bi_opf = dio_bio_write_op(iocb);
 			task_io_account_write(bio->bi_iter.bi_size);
-			task_numa_io_account_write(
-				inode->nid,
-				bio->bi_iter.bi_size);
+			task_numa_io_account_write(node_id, bio->bi_iter.bi_size);
 		}
 		if (iocb->ki_flags & IOCB_NOWAIT)
 			bio->bi_opf |= REQ_NOWAIT;

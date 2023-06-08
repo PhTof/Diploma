@@ -243,6 +243,7 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 	int nr_pages, ret = 0;
 	size_t copied = 0;
 	size_t orig_count;
+	int node_id;
 
 	if ((pos | length | align) & ((1 << blkbits) - 1))
 		return -EINVAL;
@@ -329,7 +330,8 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 		n = bio->bi_iter.bi_size;
 		if (dio->flags & IOMAP_DIO_WRITE) {
 			task_io_account_write(n);
-			task_numa_io_account_write(inode->nid, n);
+			node_id = blk_get_numa_node(bio->bi_bdev, bio->bi_iter.bi_sector);
+			task_numa_io_account_write(node_id, n);
 		} else {
 			if (dio->flags & IOMAP_DIO_DIRTY)
 				bio_set_pages_dirty(bio);

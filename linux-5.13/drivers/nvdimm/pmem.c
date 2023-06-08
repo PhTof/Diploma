@@ -302,10 +302,10 @@ static long pmem_dax_direct_access(struct dax_device *dax_dev,
 	return __pmem_direct_access(pmem, pgoff, nr_pages, kaddr, pfn);
 }
 
-static int pmem_get_numa_node(struct dax_device *dax_dev){
+static int pmem_get_numa_node(struct dax_device *dax_dev, sector_t sector){
 	struct pmem_device *pmem = dax_get_private(dax_dev);
-  struct device *dev = to_dev(pmem);
-  return dev_to_node(dev); 
+	struct device *dev = to_dev(pmem);
+	return dev_to_node(dev);
 }
 
 /*

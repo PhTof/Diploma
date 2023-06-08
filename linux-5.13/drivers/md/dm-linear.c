@@ -219,6 +219,15 @@ static int linear_dax_zero_page_range(struct dm_target *ti, pgoff_t pgoff,
 	return dax_zero_page_range(dax_dev, pgoff, nr_pages);
 }
 
+static int linear_get_numa_node(struct dm_target *ti)
+{
+	struct linear_c *lc = ti->private;
+	struct block_device *bdev = lc->dev->bdev;
+	struct device *dev = &bdev->bd_device;
+
+	return dev_to_node(dev);
+}
+
 #else
 #define linear_dax_direct_access NULL
 #define linear_dax_copy_from_iter NULL
@@ -243,6 +252,7 @@ static struct target_type linear_target = {
 	.dax_copy_from_iter = linear_dax_copy_from_iter,
 	.dax_copy_to_iter = linear_dax_copy_to_iter,
 	.dax_zero_page_range = linear_dax_zero_page_range,
+	.get_numa_node = linear_get_numa_node,
 };
 
 int __init dm_linear_init(void)

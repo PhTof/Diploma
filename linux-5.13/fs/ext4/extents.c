@@ -4242,14 +4242,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	if (!newblock)
 		goto out;
 	
-	// !!!!
-	//printk(KERN_INFO "(inode: %ld) ext_map_blocks flags = %d\n",
-        //	inode->i_ino, flags);
-	// printk(KERN_INFO "inode = %ld -> block_group = %u (ignored goal = %u)\n",
-        //	inode->i_ino,
-        //	ext4_get_group_number(inode->i_sb, newblock),
-        //	ext4_get_group_number(inode->i_sb, ar.goal));
-
 	allocated_clusters = ar.len;
 	ar.len = EXT4_C2B(sbi, ar.len) - offset;
 	ext_debug(inode, "allocate new block: goal %llu, found %llu/%u, requested %u\n",
@@ -4270,7 +4262,6 @@ got_allocated_blocks:
 
 	err = ext4_ext_insert_extent(handle, inode, &path, &newex, flags);
 	if (err) {
-		// printk(KERN_INFO "FAILED TO INSERT THE EXTENT\n");
 		if (allocated_clusters) {
 			int fb_flags = 0;
 

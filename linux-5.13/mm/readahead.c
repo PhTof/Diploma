@@ -91,6 +91,8 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 {
 	struct page *page;
 	int ret = 0;
+	struct inode *inode;
+	int node_id;
 
 	while (!list_empty(pages)) {
 		page = lru_to_page(pages);
@@ -108,8 +110,9 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 			break;
 		}
 		task_io_account_read(PAGE_SIZE);
-		// WARN: Cannot be correct
-		task_numa_io_account_read(mapping->host->nid, PAGE_SIZE);
+		inode = mapping->host;
+		if (should_account_numa_io(inode, page, &node_id))
+			task_numa_io_account_read(node_id, PAGE_SIZE);
 	}
 	return ret;
 }

@@ -1115,10 +1115,6 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	size_t xfer;
 	int id;
 
-	//propagating nid
-	int nid = dax_get_numa_node(dax_dev);
-	inode->nid = nid;
-
 	if (iov_iter_rw(iter) == READ) {
 		end = min(end, i_size_read(inode));
 		if (pos >= end)
@@ -1150,6 +1146,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		ssize_t map_len;
 		pgoff_t pgoff;
 		void *kaddr;
+		int node_id;
 
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
@@ -1178,12 +1175,16 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		 * validated via access_ok() in either vfs_read() or
 		 * vfs_write(), depending on which operation we are doing.
 		 */
-		if (iov_iter_rw(iter) == WRITE)
+		node_id = dax_get_numa_node(dax_dev, sector);
+		if (iov_iter_rw(iter) == WRITE) {
 			xfer = dax_copy_from_iter(dax_dev, pgoff, kaddr,
 					map_len, iter);
-		else
+			task_numa_io_account_write(node_id, xfer);
+		} else {
 			xfer = dax_copy_to_iter(dax_dev, pgoff, kaddr,
 					map_len, iter);
+			task_numa_io_account_read(node_id, xfer);
+		}
 
 		pos += xfer;
 		length -= xfer;
@@ -1234,11 +1235,6 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		if (ret <= 0)
 			break;
 
-		if (iov_iter_rw(iter) == WRITE) {
-			task_numa_io_account_write(inode->nid, ret);
-		} else {
-			task_numa_io_account_read(inode->nid, ret);
-		}
 		pos += ret;
 		done += ret;
 	}

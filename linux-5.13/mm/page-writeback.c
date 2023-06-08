@@ -2425,6 +2425,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 
 	if (mapping_can_writeback(mapping)) {
 		struct bdi_writeback *wb;
+		int node_id;
 
 		inode_attach_wb(inode, page);
 		wb = inode_to_wb(inode);
@@ -2435,7 +2436,8 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		inc_wb_stat(wb, WB_RECLAIMABLE);
 		inc_wb_stat(wb, WB_DIRTIED);
 		task_io_account_write(PAGE_SIZE);
-		task_numa_io_account_write(inode->nid, PAGE_SIZE);
+		if (should_account_numa_io(inode, page, &node_id))
+			task_numa_io_account_write(node_id, PAGE_SIZE);
 		current->nr_dirtied++;
 		this_cpu_inc(bdp_ratelimits);
 

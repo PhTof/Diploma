@@ -290,8 +290,12 @@ struct attribute_group dax_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(dax_attribute_group);
 
-int dax_get_numa_node(struct dax_device *dax_dev){
-  return dax_dev->ops->get_numa_node(dax_dev);
+int dax_get_numa_node(struct dax_device *dax_dev, sector_t sector)
+{
+	if (dax_dev->ops->get_numa_node)
+		return dax_dev->ops->get_numa_node(dax_dev, sector);
+
+	return 0;
 }
 
 /**
