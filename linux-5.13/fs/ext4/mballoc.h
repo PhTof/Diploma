@@ -195,7 +195,6 @@ struct ext4_allocation_context {
 	struct page *ac_buddy_page;
 	struct ext4_prealloc_space *ac_pa;
 	struct ext4_locality_group *ac_lg;
-	/* ADDITION */
 	int numa_node;
 };
 

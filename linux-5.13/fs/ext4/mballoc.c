@@ -17,7 +17,7 @@
 #include <linux/nospec.h>
 #include <linux/backing-dev.h>
 #include <trace/events/ext4.h>
-/* ADDITION */
+
 #include "numa.h"
 
 /*
@@ -868,7 +868,7 @@ mb_update_avg_fragment_size(struct super_block *sb, struct ext4_group_info *grp)
  * Choose next group by traversing largest_free_order lists. Updates *new_cr if
  * cr level needs an update.
  */
-noinline static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
+static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_context *ac,
 			int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
@@ -921,7 +921,7 @@ noinline static void ext4_mb_choose_next_group_cr0(struct ext4_allocation_contex
  * the linear search should continue for one iteration since there's lock
  * contention on the rb tree lock.
  */
-noinline static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
+static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
@@ -1008,7 +1008,8 @@ static inline int should_optimize_scan(struct ext4_allocation_context *ac)
  * performed, this function just returns the same group
  */
 static int
-next_linear_group(struct ext4_allocation_context *ac, int group, int numa, int ngroups)
+next_linear_group(struct ext4_allocation_context *ac,
+	int group, int numa_node, int ngroups)
 {
 	if (!should_optimize_scan(ac))
 		goto inc_and_return;
@@ -1030,10 +1031,7 @@ inc_and_return:
 	 * files makes group > ngroups possible on first loop.
 	 */
 
-	/* ADDITION */
-	// Assumption: group belongs to [first_group, first_group + ngroups]
-	return ext4_numa_map_block(ac->ac_sb, (group + 1), numa, ngroups);
-	// return group + 1 >= ngroups ? 0 : group + 1;
+	return ext4_numa_map_group(ac->ac_sb, (group + 1), numa_node, ngroups);
 }
 
 /*
@@ -2203,13 +2201,10 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 	struct ext4_free_extent ex;
 
-	// !!!!
-	// if (!(ac->ac_flags & EXT4_MB_HINT_TRY_GOAL) && 0)
 	if (!(ac->ac_flags & EXT4_MB_HINT_TRY_GOAL))
 		return 0;
-	if (grp->bb_free == 0) {
+	if (grp->bb_free == 0)
 		return 0;
-	}
 
 	err = ext4_mb_load_buddy(ac->ac_sb, group, e4b);
 	if (err)
@@ -2621,7 +2616,8 @@ void ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
 
 
 static noinline_for_stack int
-ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
+ext4_mb_regular_allocator(struct ext4_allocation_context *ac,
+	int numa_node, bool *fatal)
 {
 	ext4_group_t prefetch_grp = 0, ngroups, group, i;
 	int cr = -1;
@@ -2631,18 +2627,15 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	struct super_block *sb;
 	struct ext4_buddy e4b;
 	int lost;
-	/* ADDITION */
-	int nodes_unchecked;
-	ext4_group_t last_group, n_node_groups;
-	int num_nodes;
-
-	// Does this run from a fixed kernel worker thread?
-	// dump_stack();
+	ext4_group_t last_group, numa_num_groups;
+	ext4_group_t *numa_first_group;
 
 	sb = ac->ac_sb;
 	sbi = EXT4_SB(sb);
+	*fatal = false;
 	ngroups = ext4_get_groups_count(sb);
-	num_nodes = sbi->s_numa_info.num_nodes;
+	numa_first_group = sbi->s_numa_info.first_group;
+	numa_num_groups = ext4_numa_num_groups(sb, numa_node);
 	/* non-extent files are limited to low blocks/groups */
 	if (!(ext4_test_inode_flag(ac->ac_inode, EXT4_INODE_EXTENTS)))
 		ngroups = sbi->s_blockfile_groups;
@@ -2681,36 +2674,27 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	}
 
 	/* if stream allocation is enabled, use global goal */
-	// Disabled for now: the last group can easily be
-	// contained in another NUMA node's memory, it should
-	// be fixed with a simple if statement, but it needs
-	// some testing first
-	last_group = sbi->s_mb_last_group[ac->numa_node];
-
-	if (ext4_numa_bg_node(sb, last_group) != ac->numa_node) {
-		// printk(KERN_INFO "How can we avoid this?\n");
-	}
-
+	// TODO: If we can guarantee that last_group belongs
+	// to numa_node, this can become less complicated
+	last_group = sbi->s_mb_last_group[numa_node];
 	if ((ac->ac_flags & EXT4_MB_STREAM_ALLOC) &&
-	    (ext4_numa_bg_node(sb, last_group) == ac->numa_node)) {
+	    (ext4_numa_bg_node(sb, last_group) == numa_node)) {
 		/* TBD: may be hot point */
 		spin_lock(&sbi->s_md_lock);
 		ac->ac_g_ex.fe_group = last_group;
-		ac->ac_g_ex.fe_start = sbi->s_mb_last_start[ac->numa_node];
+		ac->ac_g_ex.fe_start = sbi->s_mb_last_start[numa_node];
 		spin_unlock(&sbi->s_md_lock);
 	}
-	
+
 	/* Let's just scan groups to find more-less suitable blocks */
 	cr = ac->ac_2order ? 0 : 1;
+	group = ext4_numa_map_any_group(sb, group, numa_node);
+
 	/*
 	 * cr == 0 try to get exact allocation,
 	 * cr == 3  try to get anything
 	 */
-	nodes_unchecked = ext4_numa_num_nodes(sb);
 repeat:
-	// printk(KERN_INFO "IS THE NUMA NODE OK? -> (real) %d (inode goal group numa node) %d\n", numa_node_id(), ac->numa_node);
-	/* ADDITION */
-	n_node_groups = ext4_numa_num_groups(sb, ac->numa_node);
 	for (; cr < 4 && ac->ac_status == AC_STATUS_CONTINUE; cr++) {
 		ac->ac_criteria = cr;
 		/*
@@ -2721,15 +2705,13 @@ repeat:
 		ac->ac_last_optimal_group = group;
 		ac->ac_groups_linear_remaining = sbi->s_mb_max_linear_groups;
 		prefetch_grp = group;
-		for (i = 0; i < n_node_groups; group = next_linear_group(ac, group, ac->numa_node, ngroups),
-			     i++) {
+		for (i = 0; i < numa_num_groups; group =
+			next_linear_group(ac, group, numa_node, ngroups), i++)
+		{
 			int ret = 0, new_cr;
-
-			// printk(KERN_INFO "Trying group %u\n", group);
 
 			cond_resched();
 
-			// TODO: See what can affect NUMA locality in this path
 			ext4_mb_choose_next_group(ac, &new_cr, &group, ngroups);
 			if (new_cr != cr) {
 				cr = new_cr;
@@ -2800,11 +2782,10 @@ repeat:
 				break;
 		}
 		/* Processed all groups and haven't found blocks */
-		if (sbi->s_mb_stats && i == n_node_groups)
+		if (sbi->s_mb_stats && i == numa_num_groups)
 			atomic64_inc(&sbi->s_bal_cX_failed[cr]);
 	}
 
-	// WHAT HAPPENS HERE?
 	if (ac->ac_b_ex.fe_len > 0 && ac->ac_status != AC_STATUS_FOUND &&
 	    !(ac->ac_flags & EXT4_MB_HINT_FIRST)) {
 		/*
@@ -2823,7 +2804,7 @@ repeat:
 				 ac->ac_b_ex.fe_group, ac->ac_b_ex.fe_start,
 				 ac->ac_b_ex.fe_len, lost);
 
-			ac->ac_b_ex.fe_group = sbi->s_numa_info.first_group[ac->numa_node];
+			ac->ac_b_ex.fe_group = numa_first_group[numa_node];
 			ac->ac_b_ex.fe_start = 0;
 			ac->ac_b_ex.fe_len = 0;
 			ac->ac_status = AC_STATUS_CONTINUE;
@@ -2832,17 +2813,13 @@ repeat:
 			goto repeat;
 		}
 	}
-	
-	/* ADDITION */ // search in local node failed miserably
-	if((ac->ac_status == AC_STATUS_CONTINUE) && (--nodes_unchecked) > 0) {
-		cr = ac->ac_2order ? 0 : 1;
-		ac->numa_node = ext4_numa_next_node(ac->numa_node, num_nodes);
-		goto repeat;
-	}
-	
+
 	if (sbi->s_mb_stats && ac->ac_status == AC_STATUS_FOUND)
 		atomic64_inc(&sbi->s_bal_cX_hits[ac->ac_criteria]);
 out:
+	if (err && ac->ac_status != AC_STATUS_FOUND)
+		*fatal = true;
+
 	if (!err && ac->ac_status != AC_STATUS_FOUND && first_err)
 		err = first_err;
 
@@ -4063,7 +4040,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 
 	/* check we don't cross already preallocated blocks */
 	rcu_read_lock();
-	list_for_each_entry_rcu(pa, &ei->i_prealloc_list, pa_inode_list) {
+	list_for_each_entry_rcu(pa, &ei->i_prealloc_list[ac->numa_node], pa_inode_list) {
 		ext4_lblk_t pa_end;
 
 		if (pa->pa_deleted)
@@ -4076,6 +4053,12 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 
 		pa_end = pa->pa_lstart + EXT4_C2B(EXT4_SB(ac->ac_sb),
 						  pa->pa_len);
+
+		/* Normally, this should never happen */
+		if (ext4_numa_block_node(ac->ac_sb, pa->pa_pstart) != ac->numa_node) {
+			spin_unlock(&pa->pa_lock);
+			continue;
+		}
 
 		/* PA must not overlap original request */
 		BUG_ON(!(ac->ac_o_ex.fe_logical >= pa_end ||
@@ -4103,10 +4086,15 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 
 	/* XXX: extra loop to check we really don't overlap preallocations */
 	rcu_read_lock();
-	list_for_each_entry_rcu(pa, &ei->i_prealloc_list, pa_inode_list) {
+	list_for_each_entry_rcu(pa, &ei->i_prealloc_list[ac->numa_node], pa_inode_list) {
 		ext4_lblk_t pa_end;
 
 		spin_lock(&pa->pa_lock);
+		if (ext4_numa_block_node(ac->ac_sb, pa->pa_pstart) != ac->numa_node) {
+			spin_unlock(&pa->pa_lock);
+			BUG_ON(true);
+			continue;
+		}
 		if (pa->pa_deleted == 0) {
 			pa_end = pa->pa_lstart + EXT4_C2B(EXT4_SB(ac->ac_sb),
 							  pa->pa_len);
@@ -4301,14 +4289,16 @@ ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
  * search goal blocks in preallocated space
  */
 static noinline_for_stack bool
-ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
+ext4_mb_use_preallocated(struct ext4_allocation_context *ac, int numa_node)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
+	struct super_block *sb = ac->ac_sb;
 	int order, i;
 	struct ext4_inode_info *ei = EXT4_I(ac->ac_inode);
 	struct ext4_locality_group *lg;
 	struct ext4_prealloc_space *pa, *cpa = NULL;
 	ext4_fsblk_t goal_block;
+	int pa_node;
 
 	/* only data can be preallocated */
 	if (!(ac->ac_flags & EXT4_MB_HINT_DATA))
@@ -4316,7 +4306,7 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 
 	/* first, try per-file preallocation */
 	rcu_read_lock();
-	list_for_each_entry_rcu(pa, &ei->i_prealloc_list, pa_inode_list) {
+	list_for_each_entry_rcu(pa, &ei->i_prealloc_list[ac->numa_node], pa_inode_list) {
 
 		/* all fields in this condition don't change,
 		 * so we can skip locking for them */
@@ -4330,6 +4320,11 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 		    (pa->pa_pstart + EXT4_C2B(sbi, pa->pa_len) >
 		     EXT4_MAX_BLOCK_FILE_PHYS))
 			continue;
+
+		/* by design, the per-file preallocation should likely
+		   respect the requested numa locality */
+		pa_node = ext4_numa_block_node(sb, pa->pa_pstart);
+			BUG_ON(pa_node != numa_node);
 
 		/* found preallocated blocks, use them */
 		spin_lock(&pa->pa_lock);
@@ -4367,10 +4362,14 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 		rcu_read_lock();
 		list_for_each_entry_rcu(pa, &lg->lg_prealloc_list[i],
 					pa_inode_list) {
+			pa_node = ext4_numa_block_node(sb, pa->pa_pstart);
+
+			//BUG_ON(!(ac->ac_o_ex.fe_logical >= pa_end ||
+			//	ac->ac_o_ex.fe_logical < pa->pa_lstart));
 			spin_lock(&pa->pa_lock);
 			if (pa->pa_deleted == 0 &&
-					pa->pa_free >= ac->ac_o_ex.fe_len) {
-
+					pa->pa_free >= ac->ac_o_ex.fe_len &&
+					numa_node == pa_node) {
 				cpa = ext4_mb_check_group_pa(goal_block,
 								pa, cpa);
 			}
@@ -4619,13 +4618,13 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 	ei = EXT4_I(ac->ac_inode);
 	grp = ext4_get_group_info(sb, ac->ac_b_ex.fe_group);
 
-	pa->pa_obj_lock = &ei->i_prealloc_lock;
+	pa->pa_obj_lock = &ei->i_prealloc_lock[ac->numa_node];
 	pa->pa_inode = ac->ac_inode;
 
 	list_add(&pa->pa_group_list, &grp->bb_prealloc_list);
 
 	spin_lock(pa->pa_obj_lock);
-	list_add_rcu(&pa->pa_inode_list, &ei->i_prealloc_list);
+	list_add_rcu(&pa->pa_inode_list, &ei->i_prealloc_list[ac->numa_node]);
 	spin_unlock(pa->pa_obj_lock);
 	atomic_inc(&ei->i_prealloc_active);
 }
@@ -4905,6 +4904,8 @@ void ext4_discard_preallocations(struct inode *inode, unsigned int needed)
 	ext4_group_t group = 0;
 	struct list_head list;
 	struct ext4_buddy e4b;
+	int numa_node = 0;
+	int num_numa_nodes;
 	int err;
 
 	if (!S_ISREG(inode->i_mode)) {
@@ -4925,19 +4926,20 @@ void ext4_discard_preallocations(struct inode *inode, unsigned int needed)
 	if (needed == 0)
 		needed = UINT_MAX;
 
+	num_numa_nodes = ext4_numa_num_nodes(sb);
 repeat:
 	/* first, collect all pa's in the inode */
-	spin_lock(&ei->i_prealloc_lock);
-	while (!list_empty(&ei->i_prealloc_list) && needed) {
-		pa = list_entry(ei->i_prealloc_list.prev,
+	spin_lock(&ei->i_prealloc_lock[numa_node]);
+	while (!list_empty(&ei->i_prealloc_list[numa_node]) && needed) {
+		pa = list_entry(ei->i_prealloc_list[numa_node].prev,
 				struct ext4_prealloc_space, pa_inode_list);
-		BUG_ON(pa->pa_obj_lock != &ei->i_prealloc_lock);
+		BUG_ON(pa->pa_obj_lock != &ei->i_prealloc_lock[numa_node]);
 		spin_lock(&pa->pa_lock);
 		if (atomic_read(&pa->pa_count)) {
 			/* this shouldn't happen often - nobody should
 			 * use preallocation while we're discarding it */
 			spin_unlock(&pa->pa_lock);
-			spin_unlock(&ei->i_prealloc_lock);
+			spin_unlock(&ei->i_prealloc_lock[numa_node]);
 			ext4_msg(sb, KERN_ERR,
 				 "uh-oh! used pa while discarding");
 			WARN_ON(1);
@@ -4956,7 +4958,7 @@ repeat:
 
 		/* someone is deleting pa right now */
 		spin_unlock(&pa->pa_lock);
-		spin_unlock(&ei->i_prealloc_lock);
+		spin_unlock(&ei->i_prealloc_lock[numa_node]);
 
 		/* we have to wait here because pa_deleted
 		 * doesn't mean pa is already unlinked from
@@ -4973,7 +4975,10 @@ repeat:
 		schedule_timeout_uninterruptible(HZ);
 		goto repeat;
 	}
-	spin_unlock(&ei->i_prealloc_lock);
+	spin_unlock(&ei->i_prealloc_lock[numa_node]);
+
+	if (++numa_node < num_numa_nodes)
+		goto repeat;
 
 	list_for_each_entry_safe(pa, tmp, &list, u.pa_tmp_list) {
 		BUG_ON(pa->pa_type != MB_INODE_PA);
@@ -5162,8 +5167,7 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 	mutex_lock(&ac->ac_lg->lg_mutex);
 }
 
-/* ADDITION */
-static noinline_for_stack int
+static int
 ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 				struct ext4_allocation_request *ar)
 {
@@ -5174,6 +5178,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	unsigned int len;
 	ext4_fsblk_t goal;
 	ext4_grpblk_t block;
+	int numa_node;
 
 	/* we can't allocate > group size */
 	len = ar->len;
@@ -5187,6 +5192,10 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	if (goal < le32_to_cpu(es->s_first_data_block) ||
 			goal >= ext4_blocks_count(es))
 		goal = le32_to_cpu(es->s_first_data_block);
+
+	group = ext4_get_group_number(sb, ext4_inode_to_goal_block(ar->inode));
+	numa_node = ext4_numa_node_id(sb);
+	goal = ext4_numa_map_any_block(sb, goal, numa_node);
 	ext4_get_group_no_and_offset(sb, goal, &group, &block);
 
 	/* set up allocation goals */
@@ -5200,8 +5209,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_o_ex.fe_len = len;
 	ac->ac_g_ex = ac->ac_o_ex;
 	ac->ac_flags = ar->flags;
-	// TODO: Is this safe?
-	ac->numa_node = ext4_numa_node_id();
+	ac->numa_node = numa_node;
 
 	/* we have to define context: we'll work with a file or
 	 * locality group. this is a policy, actually */
@@ -5408,7 +5416,7 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 			 * to trim the least recently used PA.
 			 */
 			spin_lock(pa->pa_obj_lock);
-			list_move(&pa->pa_inode_list, &ei->i_prealloc_list);
+			list_move(&pa->pa_inode_list, &ei->i_prealloc_list[ac->numa_node]);
 			spin_unlock(pa->pa_obj_lock);
 		}
 
@@ -5425,14 +5433,16 @@ static int ext4_mb_release_context(struct ext4_allocation_context *ac)
 	return 0;
 }
 
-static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
+static int ext4_mb_discard_preallocations(struct super_block *sb,
+		int numa_node, int needed)
 {
-	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
+	ext4_group_t i, ngroups = ext4_numa_num_groups(sb, numa_node);
+	ext4_group_t first_group = ext4_numa_first_group(sb, numa_node);
 	int ret;
 	int freed = 0;
 
-	trace_ext4_mb_discard_preallocations(sb, needed);
-	for (i = 0; i < ngroups && needed > 0; i++) {
+	trace_ext4_mb_discard_preallocations(sb, numa_node, needed);
+	for (i = first_group; i < (first_group + ngroups) && needed > 0; i++) {
 		ret = ext4_mb_discard_group_preallocations(sb, i, needed);
 		freed += ret;
 		needed -= ret;
@@ -5442,13 +5452,15 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 }
 
 static bool ext4_mb_discard_preallocations_should_retry(struct super_block *sb,
-			struct ext4_allocation_context *ac, u64 *seq)
+			struct ext4_allocation_context *ac, int numa_node,
+			u64 *seq)
 {
 	int freed;
 	u64 seq_retry = 0;
 	bool ret = false;
 
-	freed = ext4_mb_discard_preallocations(sb, ac->ac_o_ex.fe_len);
+	freed = ext4_mb_discard_preallocations(sb, numa_node,
+			ac->ac_o_ex.fe_len);
 	if (freed) {
 		ret = true;
 		goto out_dbg;
@@ -5482,11 +5494,16 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	ext4_fsblk_t block = 0;
 	unsigned int inquota = 0;
 	unsigned int reserv_clstrs = 0;
+	int numa_node, first_err = 0;
+	int numa_nodes_checked = 0;
+	int num_numa_nodes;
+	bool fatal_err;
 	u64 seq;
 
 	might_sleep();
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
+	num_numa_nodes = ext4_numa_num_nodes(sb);
 
 	trace_ext4_request_blocks(ar);
 	if (sbi->s_mount_state & EXT4_FC_REPLAY)
@@ -5546,18 +5563,22 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		goto out;
 	}
 
+	numa_node = ac->numa_node;
+next_node:
 	ac->ac_op = EXT4_MB_HISTORY_PREALLOC;
 	seq = this_cpu_read(discard_pa_seq);
-	if (!ext4_mb_use_preallocated(ac)) {
+	if (!ext4_mb_use_preallocated(ac, numa_node)) {
 		ac->ac_op = EXT4_MB_HISTORY_ALLOC;
 		ext4_mb_normalize_request(ac, ar);
 
+		/* possible -ENOMEM from kmem_cache_alloc, we cannot
+		 * continue searching over other NUMA nodes */
 		*errp = ext4_mb_pa_alloc(ac);
 		if (*errp)
 			goto errout;
 repeat:
 		/* allocate space in core */
-		*errp = ext4_mb_regular_allocator(ac);
+		*errp = ext4_mb_regular_allocator(ac, numa_node, &fatal_err);
 		/*
 		 * pa allocated above is added to grp->bb_prealloc_list only
 		 * when we were able to allocate some block i.e. when
@@ -5568,33 +5589,66 @@ repeat:
 		if (*errp) {
 			ext4_mb_pa_free(ac);
 			ext4_discard_allocated_blocks(ac);
-			goto errout;
+			if (fatal_err)
+				goto errout;
+			if (!first_err)
+				first_err = *errp;
 		}
 		if (ac->ac_status == AC_STATUS_FOUND &&
 			ac->ac_o_ex.fe_len >= ac->ac_f_ex.fe_len)
 			ext4_mb_pa_free(ac);
 	}
+
 	if (likely(ac->ac_status == AC_STATUS_FOUND)) {
 		*errp = ext4_mb_mark_diskspace_used(ac, handle, reserv_clstrs);
 		if (*errp) {
 			ext4_discard_allocated_blocks(ac);
+			/* Don't try any other node, this
+			 * may not be ignorable */
 			goto errout;
 		} else {
 			block = ext4_grp_offs_to_block(sb, &ac->ac_b_ex);
 			ar->len = ac->ac_b_ex.fe_len;
+			/* No error here, just abusing the label */
+			goto errout;
 		}
-	} else {
-		if (ext4_mb_discard_preallocations_should_retry(sb, ac, &seq)) {
+	}
+	/* Including the condition !first_err is ok, since we split up the
+	 * preallocation search and regular allocation operations over the
+	 * NUMA nodes, and any semi-important error from the regular
+	 * allocator can be ignored until we check every other node.
+	 * Additionally, this block would not execute in vanilla 5.13
+	 * until we have searched everything, so correctness may remain
+	 * intact given that any error from the regular allocator would
+	 * goto errout anyway. */
+	if (!first_err) {
+		if (ext4_mb_discard_preallocations_should_retry(sb, ac,
+				numa_node, &seq))
 			goto repeat;
-		}
 		/*
 		 * If block allocation fails then the pa allocated above
 		 * needs to be freed here itself.
 		 */
 		ext4_mb_pa_free(ac);
 		*errp = -ENOSPC;
+	} else { // Is this completely necessary?
+		ext4_mb_discard_preallocations(sb, numa_node,
+			ac->ac_o_ex.fe_len);
 	}
 
+	if (++numa_nodes_checked < num_numa_nodes) {
+		numa_node = ext4_numa_next_node(numa_node);
+		ac->numa_node = numa_node;
+		goto next_node;
+	}
+
+	/* Since we reached this point, we have searched everything without
+	 * success and we avoided serious errors, so the only thing left to
+	 * do is reprot the first error we encountered within the regular
+	 * allocator. In vanilla 5.13, this first_err would result in a goto
+	 * errout anyway, so we can overwrite *errp here. */
+	if (first_err)
+		*errp = first_err;
 errout:
 	if (*errp) {
 		ac->ac_b_ex.fe_len = 0;

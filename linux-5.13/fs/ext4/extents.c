@@ -32,6 +32,7 @@
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
 #include "xattr.h"
+#include "numa.h"
 
 #include <trace/events/ext4.h>
 
@@ -4214,6 +4215,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	/* allocate new block */
 	ar.inode = inode;
 	ar.goal = ext4_ext_find_goal(inode, path, map->m_lblk);
+	// TODO: Is this necessary?
+	ar.goal = ext4_numa_map_any_block(inode->i_sb, ar.goal, inode->nid);
 	ar.logical = map->m_lblk;
 	/*
 	 * We calculate the offset from the beginning of the cluster
@@ -4241,7 +4244,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
 		goto out;
-	
 	allocated_clusters = ar.len;
 	ar.len = EXT4_C2B(sbi, ar.len) - offset;
 	ext_debug(inode, "allocate new block: goal %llu, found %llu/%u, requested %u\n",

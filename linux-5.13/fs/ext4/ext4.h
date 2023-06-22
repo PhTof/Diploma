@@ -970,8 +970,17 @@ do {									       \
 
 #include "extents_status.h"
 #include "fast_commit.h"
-/* ADDITION */
-#include "numa.h"
+
+/* Place these numa.h related definitions here to avoid
+ * some circular dependencies issues */
+
+#define EXT4_NUMA_NUM_NODES 2
+
+struct ext4_numa_info {
+	int num_nodes;
+	ext4_group_t first_group[EXT4_NUMA_NUM_NODES];
+	ext4_group_t total_groups[EXT4_NUMA_NUM_NODES];
+};
 
 /*
  * Lock subclasses for i_data_sem in the ext4_inode_info structure.
@@ -1101,8 +1110,8 @@ struct ext4_inode_info {
 
 	/* mballoc */
 	atomic_t i_prealloc_active;
-	struct list_head i_prealloc_list;
-	spinlock_t i_prealloc_lock;
+	struct list_head i_prealloc_list[EXT4_NUMA_NUM_NODES];
+	spinlock_t i_prealloc_lock[EXT4_NUMA_NUM_NODES];
 
 	/* extents status tree */
 	struct ext4_es_tree i_es_tree;
@@ -1115,8 +1124,7 @@ struct ext4_inode_info {
 					   i_es_lock  */
 
 	/* ialloc */
-	/* ADDITION */
-	ext4_group_t	i_last_alloc_group[2];
+	ext4_group_t	i_last_alloc_group[EXT4_NUMA_NUM_NODES];
 
 	/* allocation reservation info for delalloc */
 	/* In case of bigalloc, this refer to clusters rather than blocks */
@@ -1249,6 +1257,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT2_MB_OPTIMIZE_SCAN	0x00000080 /* Optimize group
 						    * scanning in mballoc
 						    */
+#define EXT4_MOUNT2_NUMA		0x00000100
 
 #define clear_opt(sb, opt)		EXT4_SB(sb)->s_mount_opt &= \
 						~EXT4_MOUNT_##opt
@@ -3793,9 +3802,6 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 		set_buffer_uptodate(bh);
 	return buffer_uptodate(bh);
 }
-
-
-extern int ext4_numa;
 
 #endif	/* __KERNEL__ */
 

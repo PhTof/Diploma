@@ -783,24 +783,26 @@ TRACE_EVENT(ext4_discard_preallocations,
 );
 
 TRACE_EVENT(ext4_mb_discard_preallocations,
-	TP_PROTO(struct super_block *sb, int needed),
+	TP_PROTO(struct super_block *sb, int numa_node, int needed),
 
-	TP_ARGS(sb, needed),
+	TP_ARGS(sb, numa_node, needed),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
+		__field(	int,	numa_node		)
 		__field(	int,	needed			)
 
 	),
 
 	TP_fast_assign(
-		__entry->dev	= sb->s_dev;
-		__entry->needed	= needed;
+		__entry->dev		= sb->s_dev;
+		__entry->numa_node 	= numa_node;
+		__entry->needed		= needed;
 	),
 
-	TP_printk("dev %d,%d needed %d",
+	TP_printk("dev %d,%d needed %d numa node %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->needed)
+		  __entry->needed, __entry->numa_node)
 );
 
 TRACE_EVENT(ext4_request_blocks,

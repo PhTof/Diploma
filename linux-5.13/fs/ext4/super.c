@@ -46,8 +46,6 @@
 #include <linux/part_stat.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-/* ADDITION */
-// #include "numa.h"
 
 #include "ext4.h"
 #include "ext4_extents.h"	/* Needed for trace points definition */
@@ -56,12 +54,10 @@
 #include "acl.h"
 #include "mballoc.h"
 #include "fsmap.h"
+#include "numa.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
-
-/* ADDITION */
-// extern struct mapped_device *dm_get_md(dev_t dev);
 
 static struct ext4_lazy_init *ext4_li_info;
 static DEFINE_MUTEX(ext4_li_mtx);
@@ -1279,6 +1275,7 @@ static struct kmem_cache *ext4_inode_cachep;
 static struct inode *ext4_alloc_inode(struct super_block *sb)
 {
 	struct ext4_inode_info *ei;
+	int i;
 
 	ei = kmem_cache_alloc(ext4_inode_cachep, GFP_NOFS);
 	if (!ei)
@@ -1286,9 +1283,11 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 
 	inode_set_iversion(&ei->vfs_inode, 1);
 	spin_lock_init(&ei->i_raw_lock);
-	INIT_LIST_HEAD(&ei->i_prealloc_list);
+	for (i = 0; i < EXT4_NUMA_NUM_NODES; i++) {
+		INIT_LIST_HEAD(&ei->i_prealloc_list[i]);
+		spin_lock_init(&ei->i_prealloc_lock[i]);
+	}
 	atomic_set(&ei->i_prealloc_active, 0);
-	spin_lock_init(&ei->i_prealloc_lock);
 	ext4_es_init_tree(&ei->i_es_tree);
 	rwlock_init(&ei->i_es_lock);
 	INIT_LIST_HEAD(&ei->i_es_list);
@@ -1695,6 +1694,7 @@ enum {
 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
 	Opt_max_dir_size_kb, Opt_nojournal_checksum, Opt_nombcache,
 	Opt_no_prefetch_block_bitmaps, Opt_mb_optimize_scan,
+	Opt_numa
 #ifdef CONFIG_EXT4_DEBUG
 	Opt_fc_debug_max_replay, Opt_fc_debug_force
 #endif
@@ -1797,6 +1797,7 @@ static const match_table_t tokens = {
 	{Opt_removed, "prefetch_block_bitmaps"},
 	{Opt_no_prefetch_block_bitmaps, "no_prefetch_block_bitmaps"},
 	{Opt_mb_optimize_scan, "mb_optimize_scan=%d"},
+	{Opt_numa, "numa"},
 	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
 	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
 	{Opt_removed, "reservation"},	/* mount option from ext2/3 */
@@ -2020,6 +2021,7 @@ static const struct mount_opts {
 	{Opt_no_prefetch_block_bitmaps, EXT4_MOUNT_NO_PREFETCH_BLOCK_BITMAPS,
 	 MOPT_SET},
 	{Opt_mb_optimize_scan, EXT4_MOUNT2_MB_OPTIMIZE_SCAN, MOPT_GTE0},
+	{Opt_numa, EXT4_MOUNT2_NUMA, MOPT_SET | MOPT_2 | MOPT_EXT4_ONLY},
 #ifdef CONFIG_EXT4_DEBUG
 	{Opt_fc_debug_force, EXT4_MOUNT2_JOURNAL_FAST_COMMIT,
 	 MOPT_SET | MOPT_2 | MOPT_EXT4_ONLY},
@@ -5082,6 +5084,12 @@ no_journal:
 			goto failed_mount8;
 	}
 #endif  /* CONFIG_QUOTA */
+
+	if (test_opt2(sb, NUMA) && ext4_has_feature_flex_bg(sb)) {
+		ext4_msg(sb, KERN_ERR, "Flex group support for numa aware "
+			 "ext4 instances is not yet implemented");
+		goto failed_mount8;
+	}
 
 	/*
 	 * Save the original bdev mapping's wb_err value which could be

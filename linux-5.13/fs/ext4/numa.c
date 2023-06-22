@@ -1,74 +1,9 @@
-#include "ext4.h"
-/* ADDITION */
 #include <linux/printk.h>
 
-#define EXT4_NUMA_DEBUG 1
+#include "ext4.h"
+#include "numa.h"
 
-int ext4_numa = 0;
-
-bool ext4_numa_enabled() {
-	return ext4_numa;
-}
-
-int ext4_numa_bg_node(struct super_block *sb, ext4_group_t g)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	int num_nodes = sbi->s_numa_info.num_nodes;
-	ext4_group_t ngroups = sbi->s_groups_count;
-	ext4_group_t *first = sbi->s_numa_info.first_group;
-	ext4_group_t *total = sbi->s_numa_info.total_groups;
-	int node;
-
-	if(!ext4_numa_enabled())
-		return 0;
-
-	// It is very probable that the group number will be
-	// something out of bounds
-	g = g % ngroups;
-	for(node = 0; node < num_nodes; node++)
-		if(first[node] <= g && g < first[node] + total[node])
-			return node;
-
-	return 0;
-}
-
-// This should be somehow inlined
-int ext4_numa_num_nodes(struct super_block *sb) {
-	int num_nodes = EXT4_SB(sb)->s_numa_info.num_nodes;
-	return ext4_numa_enabled() ? num_nodes : 1;
-}
-
-// This as well
-ext4_group_t ext4_numa_num_groups(
-	struct super_block *sb, int node) 
-{
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-
-	if (!ext4_numa_enabled())
-		return sbi->s_groups_count;
-	
-	return sbi->s_numa_info.total_groups[node];
-}
-
-ext4_group_t ext4_numa_map_any_block(
-	struct super_block *sb, ext4_group_t group, int map_node)
-{	
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_numa_info *nf = &(sbi->s_numa_info);
-	ext4_group_t ngroups = sbi->s_groups_count;
-	ext4_group_t *first = nf->first_group;
-	ext4_group_t total_groups = nf->total_groups[map_node];
-	int block_node;
-	
-	group = group % ngroups;
-	
-	if (!ext4_numa_enabled())
-		return group;
-
-	block_node = ext4_numa_bg_node(sb, group);
-
-	return first[map_node] + (group - first[block_node]) % total_groups;
-}
+#define EXT4_NUMA_DEBUG 0
 
 /*
  * NUMA NODE i (memory of size "mapped_size_bytes")
