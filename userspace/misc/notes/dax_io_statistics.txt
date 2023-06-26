@@ -1,0 +1,68 @@
+# First, get an overview of how the "read_bytes" field of /proc/PID/io 
+# works:
+
+grep -Irn "read_bytes" linux-5.13/fs/proc
+
+# https://elixir.bootlin.com/linux/v5.13/source/fs/proc/base.c#L2939
+# We observe the field ioac (of type task_io_accounting) being part 
+# of the task_struct. Searching for the symbol "task_io_accounting"
+# in bootlin elixir, and with incredible luck, we land here:
+# https://elixir.bootlin.com/linux/v5.13/source/include/linux/task_io_accounting_ops.h#L11
+
+# Searching for "task_io_account_read", and from reviewing the result of
+# the following command (where simple is a program just reading the
+# content of local_blk_file into a 1024 bytes buffer):
+
+echo 3 > /proc/sys/vm/drop_caches # be sure that we'll read from the disk
+perf ftrace ./simple local_blk_file 1024
+# [search within output displayed with less] /ext4_read[ENTER]
+
+# ... we can see that "submit_bio" is one point in which "task_io_account_read"
+# is called. This provides us with the general idea of how IO accounting is
+# conducted.
+
+# ============================================================================= #
+
+# The problem we stumble into is the lack of IO accounting when it comes to dax.
+# We will try to expose this information from the kernel in the best way we can.
+# We execute the same command as before, but providing a dax file to follow the
+# resulted stack trace:
+
+mount -o dax=inode /dev/pmem0 /mnt/pmem0
+chattr +x /mnt/pmem0/dax
+perf ftrace ./simple /mnt/pmem0/dax 1024
+# [less] /ext4_dax_read_iter[ENTER]
+
+# After some searching, we are led to the "dax_iomap_rw" function:
+# https://elixir.bootlin.com/linux/v5.13/source/fs/dax.c#L1208
+# We make the following additions:
+
+/* ADDED LIBRARY */
+#include <linux/task_io_accounting_ops.h>
+
+/* ... */
+
+ssize_t
+dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+		const struct iomap_ops *ops)
+{
+	/* ... */
+	while (iov_iter_count(iter)) {
+		/* ... */
+	}
+
+	/* ADDITION MADE HERE */
+	if (iov_iter_rw(iter) == WRITE) {
+		task_io_account_write(done);
+	} else {
+		task_io_account_read(done);
+	}
+
+	iocb->ki_pos += done;
+	return done ? done : ret;
+}
+
+# We recompile, reboot, and following the instructions at "print_proc_after_execution.txt"
+# we can verify that the IO statistics are updated, even for DAX.
+
+# QUESTION: Is there some unresolved race condition because of this addition?

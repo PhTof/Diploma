@@ -1,0 +1,17 @@
+https://docs.kernel.org/trace/ftrace.html
+
+# Realize the availability of a function as a filter
+cat /sys/kernel/tracing/available_filter_functions | grep ext4_dax_write_iter
+
+# What tracers can we use?
+cat /sys/kernel/tracing/available_tracers
+
+# Choose a tracer
+echo function > /sys/kernel/tracing/current_tracer
+
+# Set a function as a filter
+# The name of the function must be exactly the same
+echo ext4_dax_read_iter > /sys/kernel/tracing/set_ftrace_filter
+
+# Trace stuff
+cat trace_pipe

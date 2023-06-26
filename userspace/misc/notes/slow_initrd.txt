@@ -1,0 +1,12 @@
+# Use-case: You experiment with different kernel builds within a 
+# VM, and after installing a new kernel, "Loading initial ramdisk"
+# takes too long
+
+# Strip the modules from any debug symbols (we assume version 5.13.0)
+find /lib/modules/5.13.0/ -iname "*.ko" -exec strip --strip-debug {} \;
+
+# Create again the initial ramdisk image
+update-initramfs -c -k 5.13.0
+
+# OPTIONAL: check the size of the image before and after the update
+du -sh /boot/initrd.img-5.13.0

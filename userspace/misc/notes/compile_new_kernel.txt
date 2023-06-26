@@ -1,0 +1,14 @@
+# Change the version to the one you need
+wget https://github.com/torvalds/linux/releases/tag/v5.13
+unzip -q v5.13.zip
+cd linux-5.13
+
+# Copy the old config and accept the default
+# for every new option
+cp /boot/config-$(uname -r) .
+yes "" | make oldconfig
+
+# Make and install
+make -j`nproc`
+make modules_install
+sudo make install

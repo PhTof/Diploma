@@ -1,0 +1,2 @@
+apt-get install libpmem2-dev # libpmem2.h
+apt-get install libnuma-dev # numa.h

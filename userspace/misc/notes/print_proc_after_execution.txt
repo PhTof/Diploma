@@ -1,0 +1,12 @@
+# -- bash -c '...': create a new bash instance ("..." would result in
+# using the same pid with the current bash instance for some reason)
+# -- exec bash -c "...": replace the currently running program
+# (the bash instance we initialized)
+# -- cat /proc/$$/io: print the /proc/pid/io file of the current
+# process, i.e. the second bash instance
+
+# This method does include some noise in the provided statistics, but
+# is still useful for quantitative reasons (example: see the effect of
+# using dax or not)
+
+bash -c 'exec bash -c "./fio.sh > /dev/null ; cat /proc/$$/io"'
