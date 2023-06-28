@@ -4050,6 +4050,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
 	ext4_lblk_t cluster_offset;
+	int numa_node;
 
 	ext_debug(inode, "blocks %u/%u requested\n", map->m_lblk, map->m_len);
 	trace_ext4_ext_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
@@ -4216,7 +4217,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	ar.inode = inode;
 	ar.goal = ext4_ext_find_goal(inode, path, map->m_lblk);
 	// TODO: Is this necessary?
-	ar.goal = ext4_numa_map_any_block(inode->i_sb, ar.goal, inode->nid);
+	numa_node = ext4_numa_node_id(inode->i_sb);
+	ar.goal = ext4_numa_map_any_block(inode->i_sb, ar.goal, numa_node);
 	ar.logical = map->m_lblk;
 	/*
 	 * We calculate the offset from the beginning of the cluster
