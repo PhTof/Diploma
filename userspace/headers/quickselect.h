@@ -1,17 +1,18 @@
 #ifndef QUICKSELECT_H
 #define QUICKSELECT_H
 
+#include "types.h"
 #include "processes.h"
 
 struct partition_result {
 	int index;
-	float sl;
-	float sr;
+	u64 sl;
+	u64 sr;
 };
 
-int quickselect(
-	struct process **arr,
-	int l, int r, float target
-);
+u64 quickselect_get_write_threshold(struct process_list *l,
+	numa_node_t node, u64 write_target);
+
+void quickselect_fini();
 
 #endif

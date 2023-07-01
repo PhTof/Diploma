@@ -1,13 +1,20 @@
+
+#define _GNU_SOURCE
+
 #include <stdbool.h>
 #include <stdio.h>	// NULL, printf
 #include <stdlib.h>	// malloc()
 #include <numa.h>	// numa_node_of_cpu()
 #include <time.h>
 
+#include <sched.h>
+#include <assert.h>
+
 #include "../headers/numa.h"
 #include "../headers/cpu.h"
 #include "../headers/processes.h"
 #include "../headers/target.h"
+#include "../headers/nvmm.h"
 
 int interval = 1;
 u64 current_logical_timestamp = 0;
@@ -49,18 +56,17 @@ static struct process *process_initialize_stats(int tid) {
 }
 
 static void process_update_stats(struct process *proc) {
-	int cpu = 0;
-	// The initializations 1 and 2 are important:
-	// If the task has terminated, iostat/cpustat will
-	// return shortly, and the read/write/cpu_usage 
-	// values will be garbage
-	float cpu_usage = 0;
+	int cpu = 0, node;
+	/* The initializations 1 and 2 are important:
+	 * If the task has terminated, iostat/cpustat will
+	 * return shortly, and the read/write/cpu_usage 
+	 * values will be garbage */
 	u64 utime = 0, stime = 0; /* 1 */
 	u64 numa_read[NUM_NODES];
 	u64 numa_write[NUM_NODES];
 	u64 clock_ticks = proc->total_clock_ticks;
 	
-	for (int i = 0; i < NUM_NODES; i++) {
+	for (int i = 0; i < NUM_NODES; i++) { /* 2 */
 		numa_read[i] = proc->total_numa_read[i];
 		numa_write[i] = proc->total_numa_write[i];
 	}
@@ -72,25 +78,23 @@ static void process_update_stats(struct process *proc) {
 
 	proc->prev_timestamp = proc->curr_timestamp;
 	clock_gettime(CLOCK_REALTIME, &proc->curr_timestamp);
-	/* This may not be necessary to update here (at least *
-	 * if we are sure that no one else is moving threads  *
-	 * around) */
 	proc->cpu = cpu;
 	proc->numa_node = numa_node_of_cpu(proc->cpu);
-	/*----------------------------------------------------*/
 	proc->logical_timestamp = current_logical_timestamp;
 	#define UPDATE(field) \
 		proc->diff_##field = field - proc->total_##field; \
 		proc->total_##field = field
 	UPDATE(clock_ticks);
-	for (int i = 0; i < NUM_NODES; i++) {
-		UPDATE(numa_read[i]);
-		UPDATE(numa_write[i]);
+	for (node = 0; node < NUM_NODES; node++) {
+		UPDATE(numa_read[node]);
+		UPDATE(numa_write[node]);
+		proc->diff_numa_write_sum += proc->diff_numa_write[node];
+		nvmm_update(node, numa_read[node], numa_write[node]);
 	}
 	#undef UPDATE
 	
-	cpu_usage = process_cpu_usage(proc);
-	cpu_update(proc->numa_node, cpu_usage);
+	proc->cpu_usage = process_cpu_usage(proc);
+	cpu_update(proc->numa_node, proc->cpu_usage);
 }
 
 static void add_pid_to_list(int tid, struct process_list *l) {
@@ -154,22 +158,24 @@ static void remove_expired_processes(struct process_list *l) {
 
 static void log_process_info(struct process *head) {
 	struct process *proc = head;
+	struct bitmask *mask;
 
 	while (proc) {
-		// temporarily
-		//if (process_cpu_usage(proc) > 0.1)
 		printf( "TID: %6d "
 			"[cpu: %.3f]" //"[ratio: %.3f]"
 			"[dr0: %lld][dw0: %lld]"
-			"[dr1: %lld][dw1: %lld] (INIT_TARGET = %d)\n", 
+			"[dr1: %lld][dw1: %lld] (node = %d)"
+			"\n"
+			, 
 			proc->tid, 
-			process_cpu_usage(proc),
+			proc->cpu_usage,
 			proc->diff_numa_read[0],
 			proc->diff_numa_write[0],
 			proc->diff_numa_read[1],
 			proc->diff_numa_write[1],
-			target_get_initial(proc)
+			proc->numa_node
 		);
+//		print_affinity(proc->tid);
 		proc = proc->next;
 	}
 }
@@ -187,6 +193,7 @@ static void profile_forever(char *usr) {
 	long offset_nsec = 0;
 
 	numa_init(); // TODO: this should be moved to main
+	nvmm_init();
 	num_nodes = numa_num_nodes();
 	cpu_init(num_nodes);	
 
@@ -207,6 +214,7 @@ static void profile_forever(char *usr) {
 		}
 
 		cpu_reset();
+		nvmm_reset();
 
 		while (fgets(line, 100, fp) != NULL) {
 			int tid;
@@ -228,11 +236,7 @@ static void profile_forever(char *usr) {
 		log_process_info(l.head);
 		pclose(fp);
 
-		cpu_print();	
 		fix_congestion(&l);
-
-		// TMP
-		printf("CONT = %d\n", cpu_contention());
 	
 		/* Stop timing */	
 		clock_gettime(CLOCK_REALTIME, &finish);
@@ -240,8 +244,11 @@ static void profile_forever(char *usr) {
 		/* Wait for the rest of the interval */	
 		long computation_nsec = TIME_NSEC(start, finish);
 		long sleep_interval_nsec = interval_nsec - computation_nsec - offset_nsec;
+		if (sleep_interval_nsec < 0)
+			sleep_interval_nsec = 0;
+
 		usleep(sleep_interval_nsec/1000);
-	
+
 		// Update the logical timestamp	
 		current_logical_timestamp += 1;
 		// Correct the offset parameter
@@ -251,6 +258,7 @@ static void profile_forever(char *usr) {
 	}
 	// TODO: put this inside a signal handler
 	cpu_fini();
+	nvmm_fini();
 	numa_fini();
 }
 

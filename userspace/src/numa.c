@@ -1,17 +1,59 @@
 // Don't include this for now (may be completely useless)
 // #include <libpmem2.h> 	// pmem2_*
 
+#define _GNU_SOURCE
+#include <pthread.h>
 #include <stdio.h> // TMP
+#include <errno.h>
 #include <numa.h>
+
+// Directly copied from libnuma
+#define bitsperlong (8 * sizeof(unsigned long))
+#define howmany(x,y) (((x)+((y)-1))/(y))
+#define longsperbits(n) howmany(n, bitsperlong)
 
 #include "../headers/numa.h"
 #include "../headers/util.h"	// smalloc()
+
+extern struct pthread *__find_thread_by_id (pid_t tid);
 
 // Number of NUMA nodes
 static int num_nodes = 0;
 // A bitmap for each node
 static struct bitmask **bms = NULL;
 static int *cpus_per_node = NULL;
+
+unsigned int
+numa_bitmask_nbytes(struct bitmask *bmp)
+{
+        return longsperbits(bmp->size) * sizeof(unsigned long);
+}
+
+// TODO: remove this if no longer needed
+// Assumes little endian
+static inline void printBits(size_t const size, void const * const ptr)
+{
+    unsigned char *b = (unsigned char*) ptr;
+    unsigned char byte;
+    int i, j;
+    
+    for (i = size-1; i >= 0; i--) {
+        for (j = 7; j >= 0; j--) {
+            byte = (b[i] >> j) & 1;
+            printf("%u", byte);
+        }
+    }
+}
+
+// TODO: Remove this as well
+void print_cpumask(struct bitmask *bms) {
+
+	int i;
+	for (i = 0; i < bms->size/bitsperlong; i++) {
+		printBits(bitsperlong >> 3, (void *) (bms->maskp + i));
+	}
+	printf("\n");
+}
 
 // Naive implementation
 static inline int hamming_weight(unsigned long val) {
@@ -26,7 +68,7 @@ static inline int hamming_weight(unsigned long val) {
 }
 
 static inline void cpus_per_node_compute() {
-	int i, node, bitsperlong = sizeof(unsigned long) << 3;
+	int i, node;
 
 	for (node = 0; node < num_nodes; node++) {
 		cpus_per_node[node] = 0;
@@ -74,14 +116,13 @@ int get_numa_node(int fd) {
 */
 
 // Change the numa node on which {pid} runs
-void numa_set_node(int pid, int node) {
+void numa_set_node(int tid, int node) {
 	struct bitmask *mask;
-
-	// Alternative: numa_run_on_node(node);
 
 	mask = numa_allocate_cpumask();
 	numa_node_to_cpus(node, mask);
-	numa_sched_setaffinity(pid, mask);
+	numa_sched_setaffinity(tid, mask);
+
 	numa_free_cpumask(mask);
 }
 

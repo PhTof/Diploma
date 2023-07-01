@@ -31,6 +31,10 @@ struct process {
 	u64 diff_numa_read[NUM_NODES];
 	u64 diff_numa_write[NUM_NODES];
 	u64 diff_clock_ticks;
+	// Make our work in quickselet.c easier
+	u64 diff_numa_write_sum;
+	// Avoid recomputing this every time
+	float cpu_usage;
 	float write_ratio;
 	struct timespec prev_timestamp;
 	struct timespec curr_timestamp;
@@ -42,7 +46,7 @@ struct process_list {
 	int size;
 };
 
-inline static void proc_write_ratio(struct process *proc) {
+inline static void compute_write_ratio(struct process *proc) {
 	u64 acc_diff_read = 0;
 	u64 acc_diff_write = 0;
 	u64 denominator;

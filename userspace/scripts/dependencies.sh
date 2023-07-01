@@ -13,13 +13,12 @@ function replace {
 }
 
 mkdir -p $MYPATH
-
 cd $MYPATH
 
 git clone https://github.com/intel/intel-pmwatch.git
 cd intel-pmwatch
 ./autogen.sh
-PMWATCHDIR=$(pwd)/pmwatch
+PMWATCHDIR=$(pwd)/pmwatch_bin
 mkdir $PMWATCHDIR
 ./configure --prefix=$PMWATCHDIR --bindir=$PMWATCHDIR/bin64 \
 	--libdir=$PMWATCHDIR/lib64
@@ -57,9 +56,11 @@ mkdir json-c
 cp json.h printbuf.h json-c
 cd ../
 
+
 # Make ndctl (required by pmdk)
 git clone https://github.com/pmem/ndctl.git
 cd ndctl
+git checkout tags/v75
 
 # Fix the dependency issues
 OLDLINE="json = dependency('json-c')"
@@ -83,6 +84,7 @@ cd ../
 # Get patchelf
 git clone https://github.com/NixOS/patchelf
 cd patchelf
+git checkout tags/0.17.0
 ./bootstrap.sh
 ./configure
 make

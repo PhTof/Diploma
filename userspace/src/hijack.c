@@ -2,8 +2,12 @@
 #include <dlfcn.h>  // dlopen
 #include <errno.h>  // errno
 #include <string.h> // strerror
-#include <stdlib.h> // abort
+#include <stdlib.h> // abort, rand
 #include <unistd.h> // read() & close()
+#include <numa.h>
+
+// O_CREAT
+#include <asm-generic/fcntl.h>
 
 #include "../headers/dax.h"
 #include "../headers/numa.h"
@@ -33,7 +37,8 @@ union function_t load(char *symbol) {
 	if (!dlopened) {
 		handle = dlopen("libc.so.6", RTLD_NOW);
 		if (!handle) {
-			fprintf(stderr, "Error loading libc.so.6: %s\n", strerror(errno));
+			fprintf(stderr, "Error loading libc.so.6: %s\n",
+				strerror(errno));
 			abort();
 		}
 		printf("dlopned!\n");
@@ -55,11 +60,16 @@ union function_t load(char *symbol) {
 int open(const char *pathname, int flags) {
 	INIT_REAL_FUN(open);
 
-	int fd = real_open(pathname, flags);
-	daxflag(fd, 1);
-	close(fd);
+	if (flags & O_CREAT) {
+		numa_run_on_node(rand() % 2);
+	}
 
-	return real_open(pathname, flags);
+	int fd = real_open(pathname, flags);
+
+//	if (fd >= 0)
+//		daxflag(fd, 1);
+
+	return fd;
 }
 
 // read syscall wrapper

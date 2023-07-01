@@ -1,181 +1,243 @@
 #include <stdlib.h>	// free()
 
+// TODO: REMOVE
+#include <stdio.h>
+#include <assert.h>
+
 #include "../headers/processes.h"
 #include "../headers/cpu.h"
 #include "../headers/target.h"
 #include "../headers/quickselect.h"
 #include "../headers/list.h"
 #include "../headers/numa.h"
-// #include "../headers/nvmm.h"
+#include "../headers/nvmm.h"
 
-// TMP!
-#define NONE (-1)
+#define TARGET_DEBUG 0
+#define NO_NODE (-1)
+#define node_is_defined(node) (node != NO_NODE)
+#define migrate_thread(thread,node) numa_set_node(thread, node)
+#define minus(x) (-(x))
 
-struct list_to_array {
-	struct process **array;
-	int alloc_size;
-	int used_size;
-};
+typedef struct nvmm_status {
+	/* BW usage imbalance indicator:
+	 * value < 0: underused node, bytes below average
+	 * value > 0: overused node, bytes way above average */
+	i64 node_bytes_mean_centered[NUM_NODES];
+	u64 write_bytes_threshold;
+	numa_node_t nvmm_congested_node;
+	numa_node_t nvmm_least_used_node;
+} nvmm_status;
 
-static struct list_to_array global_aux = {NULL, 0, 0};
+/* We only take into account the recorded
+ * read BW, as NUMA aware ext4 tends to
+ * mostly write locally */
 
-void migrate_thread(int thread_id, int node) {
-	numa_set_node(thread_id, node);
-}
-
-int target_get_initial(struct process *proc) {
-	// only take into account the reads for now
-	int i, target = 0;
-	u64 *diff_read = proc->diff_numa_read;
-
-	for (i = 0; i < NUM_NODES; i++)
-		if (diff_read[target] < diff_read[i])
-			target = i;
-
-	for (i = 0; i < NUM_NODES; i++)
-		if (diff_read[target] < diff_read[i] + DIFF_FACTOR)
-		    if (i != target)
-			return NO_TARGET;
-
-	return target;
-}
-
-static void prepare_aux_struct(
-	struct process_list *l,
-	struct list_to_array *a,
-	int node)
+#define DIFF_FACTOR (2 << 27) /* 128 MB */
+int get_target_node(struct process *proc)
 {
-	int alloc_size, i = 0;
-	struct process *proc = l->head;
+	u64 *diff_read = proc->diff_numa_read;
+	int node, target_node = 0;
 
-	// extend the aux struct if needed
-	if (a->alloc_size < l->size) {
-		free(a->array);
-		alloc_size = 
-			2*(l->size)*sizeof(struct process *);
-		a->array = (struct process **) 
-			malloc(alloc_size);
-		a->alloc_size = 2*(l->size);
-	}
+	for (node = 0; node < NUM_NODES; node++)
+		if (diff_read[target_node] < diff_read[node])
+			target_node = node;
 
-	while (proc) {
-		if (proc->numa_node == node) {
-			proc_write_ratio(proc);
-			a->array[i++] = proc;
-		}
-		proc = proc->next;
-	}
-	a->used_size = i;
+	for (node = 0; node < NUM_NODES; node++)
+		if (diff_read[node] + DIFF_FACTOR > diff_read[target_node])
+			if (node != target_node)
+				return NO_TARGET;
+
+	return target_node;
 }
 
-void fix_congestion(struct process_list *l) {
-	// int nvmm_congested_node = nvmm_contention();
-	int nvmm_congested_node = 1;
-	// int cpu_congested_node = cpu_contention();
-	int cpu_congested_node = 0;
-	u64 nodes_BW[NUM_NODES];
-	u64 sum_BW = 0, average_BW;
-	u64 data_write_target[NUM_NODES];
-	u64 total_proc_write;
-	struct list_to_array *aux = &global_aux;
+#define WRITE_RATIO_THRESHOLD 0.3
+static inline bool is_write_intensive(struct process *proc,
+		struct nvmm_status status)
+{
+	compute_write_ratio(proc);
+	return (proc->diff_numa_write_sum > status.write_bytes_threshold &&
+		proc->write_ratio > WRITE_RATIO_THRESHOLD);
+}
+
+#define CPU_USAGE_THRESHOLD 10
+static inline bool moderate_cpu_usage(struct process *proc) {
+	return CPU_USAGE_THRESHOLD <= proc->cpu_usage &&
+		proc->cpu_usage < CPU_LIMIT;
+}
+
+static inline void compute_nvmm_status(struct process_list *l,
+		numa_node_t congested_node, nvmm_status *status)
+{
+	numa_node_t node;
+	u64 bytes_average, bytes_sum = 0;
+
+	for (node = 0; node < NUM_NODES && TARGET_DEBUG; node++) {
+		printf("PROCFS BYTES (node %d): %llu\n", node,
+			nvmm_get_bytes_procfs(node));
+		printf("COUNTERS BYTES (node %d): %llu\n", node,
+			nvmm_get_bytes_counters(node));
+	}
+
+	status->nvmm_congested_node = congested_node;
+
+	for (node = 0; node < NUM_NODES; node++)
+		bytes_sum += nvmm_get_bytes_procfs(node);
+	bytes_average = bytes_sum / NUM_NODES;
+
+	for (node = 0; node < NUM_NODES; node++) {
+		status->node_bytes_mean_centered[node] =
+			nvmm_get_bytes_procfs(node) - bytes_average;
+	}
+
+	quickselect_get_write_threshold(l, congested_node,
+		status->node_bytes_mean_centered[congested_node]);
+}
+
+
+static inline void update_status(struct process *proc,
+		numa_node_t target_node, nvmm_status *ns)
+{
+	i64 *mean_centered = ns->node_bytes_mean_centered;
+	u64 proc_write = proc->diff_numa_write_sum;
+
+	mean_centered[proc->numa_node] -= proc_write;
+	mean_centered[target_node] += proc_write;
+	
+	cpu_update(proc->numa_node, minus(proc->cpu_usage));
+	cpu_update(target_node, proc->cpu_usage);
+}
+
+static inline numa_node_t nvmm_preferred_node(struct nvmm_status ns)
+{
+	i64 *mean_centered = ns.node_bytes_mean_centered;
+	int min_idx = 0, node;
+
+	for (node = 0; node < NUM_NODES; node++)
+		if(mean_centered[node] < mean_centered[min_idx])
+			min_idx = node;
+
+	return min_idx;
+}
+
+static inline numa_node_t cpu_preferred_node()
+{
+	int min_idx = 0, node;
+
+	for (node = 0; node < NUM_NODES; node++)
+		if(cpu_get_usage(node) < cpu_get_usage(min_idx))
+			min_idx = node;
+
+	return min_idx;
+}
+
+static inline bool nvmm_target_is_suitable(struct process *proc,
+		nvmm_status ns)
+{
+	numa_node_t target_node, congested_node;
+	i64 mean_centered;
+
+	target_node = get_target_node(proc);
+	congested_node = ns.nvmm_congested_node;
+	if (!node_is_defined(target_node) || target_node == congested_node)
+		return false;
+
+	mean_centered = ns.node_bytes_mean_centered[target_node];
+	return mean_centered + proc->diff_numa_write_sum <= 0;
+}
+
+#define CPU_MARGIN 10
+static inline bool cpu_target_is_suitable(struct process *proc,
+		numa_node_t congested_node)
+{
+	numa_node_t target_node = get_target_node(proc);
+	float projected_usage;
+
+	if (!node_is_defined(target_node) || target_node == congested_node)
+		return false;
+
+	projected_usage = cpu_get_usage(target_node) + proc->cpu_usage;
+	return projected_usage < (CPU_LIMIT - CPU_MARGIN);
+}
+
+/* {nvmm,cpu}_decide_target functions: In case we have more than 2
+ * NUMA nodes, we will have to check more than just the optimal node.
+ * This is left for now as is for simplicity. */
+
+static inline bool nvmm_decide_target(struct process *proc,
+		nvmm_status ns, numa_node_t *node)
+{
+	numa_node_t nvmm_optimal_node = nvmm_preferred_node(ns);
+
+	/* Avoid future migration due to cpu congestion */
+	if (cpu_get_usage(nvmm_optimal_node) + proc->cpu_usage > CPU_LIMIT)
+		return false;
+
+	*node = nvmm_optimal_node;
+	return true;
+}
+
+static inline bool cpu_decide_target(struct process *proc, numa_node_t *node)
+{
+	numa_node_t cpu_optimal_node = cpu_preferred_node();
+	u64 chosen_node_bytes = nvmm_get_bytes_counters(cpu_optimal_node);
+	u64 introduced_bytes = proc->diff_numa_write_sum;
+
+	/* Avoid future migration due to nvmm congestion */
+	if (chosen_node_bytes + introduced_bytes > MAX_TOTAL_BW)
+		return false;
+
+	*node = cpu_optimal_node;
+	return true;
+}
+
+void fix_congestion(struct process_list *l)
+{
+	numa_node_t nvmm_congested_node;
+	numa_node_t cpu_congested_node;
+	numa_node_t target_node, current_node;
+	struct nvmm_status status;
 	struct process *proc;
-	// TODO: handle differently
-	int interval = 1;
-	int i, n, target;
-	float nodes_cpu[NUM_NODES], cpu_usage;
-	int min;
 
 	if (list_is_empty(l))
 		return;
+	
+	/* System-wide indicators */
+	nvmm_congested_node = nvmm_contention();
+	cpu_congested_node = cpu_contention();
 
-	if (nvmm_congested_node != NONE) {
+	if (node_is_defined(nvmm_congested_node))
+		compute_nvmm_status(l, nvmm_congested_node, &status);
 
-		// update auxiliary structure
-		prepare_aux_struct(l, aux, nvmm_congested_node);
-		// find data migration margins for each node
-		for (i = 0; i < NUM_NODES; i++) {
-			// TODO: Don't forget to uncomment this
-			// nodes_BW[i] = nvmm_get_node_BW(i);
-			sum_BW += nodes_BW[i];
+	for(proc = l->head; proc; proc = proc->next) {
+		current_node = proc->numa_node;
+
+		if (current_node == nvmm_congested_node &&
+		    is_write_intensive(proc, status)) {
+			if (nvmm_target_is_suitable(proc, status))
+				goto migrate;
+			if (nvmm_decide_target(proc, status, &target_node))
+				goto migrate;
 		}
 
-		average_BW = sum_BW / NUM_NODES;
-		for (n = 0; n < NUM_NODES; n++) {
-			data_write_target[n] = (nodes_BW[n] - average_BW)*interval;
+		if (proc->numa_node == cpu_congested_node &&
+		    moderate_cpu_usage(proc)) {
+			if (cpu_target_is_suitable(proc, cpu_congested_node))
+				goto migrate;
+			if (cpu_decide_target(proc, &target_node))
+				goto migrate;
 		}
 
-		int index = 0;
-		index = quickselect(
-			aux->array, 0, aux->used_size-1, 
-			data_write_target[nvmm_congested_node]);
-
-		// TODO: This needs better planning (what if you cannot
-		// move anything based on target alone -> try to minimize 
-		// cost when moving things somewhere else from the target)
-		for (i = 0; i < index; i++) {
-			proc = aux->array[i];
-			total_proc_write = 0;
-			for (n = 0; n < NUM_NODES; n++)
-				total_proc_write += proc->diff_numa_write[n];
-			target = target_get_initial(proc);
-			
-			if (target == NO_TARGET || target == nvmm_congested_node) {
-				int min_node = 0;
-				for (n = 0; n < NUM_NODES; n++) {
-					if (data_write_target[min_node] > data_write_target[n])
-						min_node = n;
-				}
-				data_write_target[min_node] += total_proc_write;
-				migrate_thread(proc->tid, min_node);
-				continue;
-			}
-			if (data_write_target[target] + total_proc_write <= 0) {
-				data_write_target[target] += total_proc_write;
-				migrate_thread(proc->tid, target);
-			} else {
-				// do something good here
-			}
-		}
-
-		return;
-	}
-
-	if (cpu_congested_node != NONE) {
-		proc = l->head;
-
-		for (n = 0; n < NUM_NODES; n++)
-			nodes_cpu[n] = cpu_get_usage(n);
-
-		while (nodes_cpu[cpu_congested_node] > CPU_LIMIT && proc) {
-			cpu_usage = process_cpu_usage(proc);
-			target = target_get_initial(proc);
-			if (target == NO_TARGET) {
-				min = 0;
-				for (n = 0; n < NUM_NODES; n++)
-					if (nodes_cpu[n] < nodes_cpu[min])
-						min = n;
-				if (nodes_cpu[min] + cpu_usage < CPU_LIMIT)
-					migrate_thread(proc->tid, target);
-			} else if (nodes_cpu[target] + cpu_usage < CPU_LIMIT) {
-				migrate_thread(proc->tid, target);
-			} else {
-				// Again, think of something
-			}
-			proc = proc->next;
-		}
-		return;
-	}
-
-	// simply move to target
-	proc = l->head;
-	while (proc) {
-		target = target_get_initial(proc);
-		if (target != NO_TARGET)
-			migrate_thread(proc->tid, target);
-		proc = proc->next;
+		target_node = get_target_node(proc);
+		if (!node_is_defined(target_node) ||
+		    target_node == nvmm_congested_node ||
+		    target_node == cpu_congested_node)
+			continue;
+migrate:
+		update_status(proc, target_node, &status);
+		migrate_thread(proc->tid, target_node);
 	}
 }
 
 void target_fini() {
-	free(global_aux.array);
+	quickselect_fini();
 }
