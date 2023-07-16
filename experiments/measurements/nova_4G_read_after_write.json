@@ -1,0 +1,1348 @@
+{
+  "measurements": [
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 1,
+      "bw": 1111368
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 1,
+      "bw": 1122071
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 1,
+      "bw": 1120872
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 1,
+      "bw": 1842840
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 1,
+      "bw": 1841222
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 1,
+      "bw": 1826787
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 1,
+      "threads": 1,
+      "bw": 622115
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 1,
+      "threads": 1,
+      "bw": 622485
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 1,
+      "threads": 1,
+      "bw": 623502
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 1,
+      "threads": 1,
+      "bw": 1588149
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 1,
+      "threads": 1,
+      "bw": 1475828
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 1,
+      "threads": 1,
+      "bw": 1721093
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 2,
+      "bw": 2121013
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 2,
+      "bw": 2072284
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 2,
+      "bw": 2115130
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 2,
+      "bw": 3452102
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 2,
+      "bw": 3459219
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 2,
+      "bw": 3463504
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 2,
+      "threads": 2,
+      "bw": 1185166
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 2,
+      "threads": 2,
+      "bw": 1224078
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 2,
+      "threads": 2,
+      "bw": 1182326
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 2,
+      "threads": 2,
+      "bw": 3019657
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 2,
+      "threads": 2,
+      "bw": 2816859
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 2,
+      "threads": 2,
+      "bw": 3290940
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 3,
+      "bw": 3002365
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 3,
+      "bw": 3094666
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 3,
+      "bw": 3066011
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 3,
+      "bw": 4882775
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 3,
+      "bw": 4907531
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 3,
+      "bw": 4934475
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 3,
+      "threads": 3,
+      "bw": 1746413
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 3,
+      "threads": 3,
+      "bw": 1761079
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 3,
+      "threads": 3,
+      "bw": 1694668
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 3,
+      "threads": 3,
+      "bw": 3882416
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 3,
+      "threads": 3,
+      "bw": 3787751
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 3,
+      "threads": 3,
+      "bw": 4600699
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 4,
+      "bw": 2859102
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 4,
+      "bw": 2844077
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 4,
+      "bw": 2833032
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 4,
+      "bw": 6328636
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 4,
+      "bw": 6290669
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 4,
+      "bw": 6209184
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 4,
+      "threads": 4,
+      "bw": 1840414
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 4,
+      "threads": 4,
+      "bw": 1862893
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 4,
+      "threads": 4,
+      "bw": 1822421
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 4,
+      "threads": 4,
+      "bw": 4320684
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 4,
+      "threads": 4,
+      "bw": 4235601
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 4,
+      "threads": 4,
+      "bw": 5940940
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 5,
+      "bw": 3497585
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 5,
+      "bw": 3500504
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 5,
+      "bw": 3497001
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 5,
+      "bw": 7662228
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 5,
+      "bw": 7701623
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 5,
+      "bw": 7667831
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 5,
+      "threads": 5,
+      "bw": 2134505
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 5,
+      "threads": 5,
+      "bw": 2144985
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 5,
+      "threads": 5,
+      "bw": 2134723
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 5,
+      "threads": 5,
+      "bw": 4444060
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 5,
+      "threads": 5,
+      "bw": 4541255
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 5,
+      "threads": 5,
+      "bw": 7251562
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 6,
+      "bw": 4116771
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 6,
+      "bw": 4105354
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 6,
+      "bw": 4087351
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 6,
+      "bw": 9036202
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 6,
+      "bw": 9104856
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 6,
+      "bw": 9055712
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 6,
+      "threads": 6,
+      "bw": 2384256
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 6,
+      "threads": 6,
+      "bw": 2376600
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 6,
+      "threads": 6,
+      "bw": 2371896
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 6,
+      "threads": 6,
+      "bw": 4076097
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 6,
+      "threads": 6,
+      "bw": 4609125
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 6,
+      "threads": 6,
+      "bw": 8433587
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 7,
+      "bw": 4641183
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 7,
+      "bw": 4652214
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 7,
+      "bw": 4622186
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 7,
+      "bw": 10359960
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 7,
+      "bw": 10327164
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 7,
+      "bw": 10280156
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 7,
+      "threads": 7,
+      "bw": 2459178
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 7,
+      "threads": 7,
+      "bw": 2469728
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 7,
+      "threads": 7,
+      "bw": 2414285
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 7,
+      "threads": 7,
+      "bw": 3607338
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 7,
+      "threads": 7,
+      "bw": 4588236
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 7,
+      "threads": 7,
+      "bw": 9664294
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 8,
+      "bw": 4912801
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 8,
+      "bw": 4949761
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 8,
+      "bw": 4955609
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 8,
+      "bw": 11614548
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 8,
+      "bw": 11679231
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 8,
+      "bw": 11654891
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 8,
+      "threads": 8,
+      "bw": 2062096
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 8,
+      "threads": 8,
+      "bw": 2083479
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 8,
+      "threads": 8,
+      "bw": 2071644
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 8,
+      "threads": 8,
+      "bw": 3052900
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 8,
+      "threads": 8,
+      "bw": 4500929
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 8,
+      "threads": 8,
+      "bw": 10692935
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 9,
+      "bw": 5152004
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 9,
+      "bw": 5153411
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 9,
+      "bw": 5144281
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 9,
+      "bw": 12697186
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 9,
+      "bw": 12783181
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 9,
+      "bw": 12822260
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 9,
+      "threads": 9,
+      "bw": 1367261
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 9,
+      "threads": 9,
+      "bw": 1368005
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 9,
+      "threads": 9,
+      "bw": 1377640
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 9,
+      "threads": 9,
+      "bw": 2520615
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 9,
+      "threads": 9,
+      "bw": 4377680
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 9,
+      "threads": 9,
+      "bw": 11741441
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 10,
+      "bw": 5123752
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 10,
+      "bw": 5123752
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 10,
+      "bw": 5122501
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 10,
+      "bw": 13792515
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 10,
+      "bw": 13824337
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 10,
+      "bw": 13657779
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 10,
+      "threads": 10,
+      "bw": 822122
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 10,
+      "threads": 10,
+      "bw": 809133
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 10,
+      "threads": 10,
+      "bw": 812298
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 10,
+      "threads": 10,
+      "bw": 2171864
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 10,
+      "threads": 10,
+      "bw": 4218772
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 10,
+      "threads": 10,
+      "bw": 12901581
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 11,
+      "bw": 5169450
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 11,
+      "bw": 5120681
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 11,
+      "bw": 5140078
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 11,
+      "bw": 14849483
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 11,
+      "bw": 14873418
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 11,
+      "bw": 14740365
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 11,
+      "threads": 11,
+      "bw": 528588
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 11,
+      "threads": 11,
+      "bw": 529013
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 11,
+      "threads": 11,
+      "bw": 531046
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 11,
+      "threads": 11,
+      "bw": 1654676
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 11,
+      "threads": 11,
+      "bw": 4005673
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 11,
+      "threads": 11,
+      "bw": 13772341
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 12,
+      "bw": 5066094
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 12,
+      "bw": 5067114
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 12,
+      "bw": 5064565
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 12,
+      "bw": 15743399
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 12,
+      "bw": 15500969
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 12,
+      "bw": 15689416
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 12,
+      "threads": 12,
+      "bw": 393348
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 12,
+      "threads": 12,
+      "bw": 399219
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 12,
+      "threads": 12,
+      "bw": 400630
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 12,
+      "threads": 12,
+      "bw": 1183744
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 12,
+      "threads": 12,
+      "bw": 3835376
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 12,
+      "threads": 12,
+      "bw": 14521537
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 13,
+      "bw": 4922003
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 13,
+      "bw": 4914018
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 13,
+      "bw": 4906060
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 13,
+      "bw": 16558139
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 13,
+      "bw": 16598463
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 13,
+      "bw": 16513007
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 13,
+      "threads": 13,
+      "bw": 324154
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 13,
+      "threads": 13,
+      "bw": 321009
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 13,
+      "threads": 13,
+      "bw": 324038
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 13,
+      "threads": 13,
+      "bw": 619043
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 13,
+      "threads": 13,
+      "bw": 3666842
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 13,
+      "threads": 13,
+      "bw": 15162945
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 14,
+      "bw": 4848505
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 14,
+      "bw": 4844106
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 14,
+      "bw": 4838916
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 14,
+      "bw": 16976078
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 14,
+      "bw": 16859103
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 14,
+      "bw": 16854264
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 14,
+      "threads": 14,
+      "bw": 276403
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 14,
+      "threads": 14,
+      "bw": 274728
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 14,
+      "threads": 14,
+      "bw": 275759
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 14,
+      "threads": 14,
+      "bw": 555211
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 14,
+      "threads": 14,
+      "bw": 3563554
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 14,
+      "threads": 14,
+      "bw": 15802006
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 15,
+      "bw": 4832889
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 15,
+      "bw": 4854143
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 15,
+      "bw": 4835489
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 15,
+      "bw": 17336610
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 15,
+      "bw": 17274728
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 15,
+      "bw": 17255776
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 15,
+      "threads": 15,
+      "bw": 246479
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 15,
+      "threads": 15,
+      "bw": 248104
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 15,
+      "threads": 15,
+      "bw": 248649
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 15,
+      "threads": 15,
+      "bw": 515085
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 15,
+      "threads": 15,
+      "bw": 3452102
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 15,
+      "threads": 15,
+      "bw": 16278023
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 16,
+      "bw": 4653551
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 16,
+      "bw": 4650971
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 16,
+      "bw": 4683429
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 16,
+      "bw": 17553979
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 16,
+      "bw": 17600016
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 16,
+      "bw": 17517322
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 16,
+      "threads": 16,
+      "bw": 225903
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 16,
+      "threads": 16,
+      "bw": 225896
+    },
+    {
+      "type": "sync",
+      "rw%": 0,
+      "rthreads": 16,
+      "threads": 16,
+      "bw": 224856
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 16,
+      "threads": 16,
+      "bw": 483653
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 16,
+      "threads": 16,
+      "bw": 3331622
+    },
+    {
+      "type": "sync",
+      "rw%": 100,
+      "rthreads": 16,
+      "threads": 16,
+      "bw": 16496770
+    }
+  ]
+}

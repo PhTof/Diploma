@@ -1,0 +1,15 @@
+thread
+group_reporting
+ioengine=${ENGINE}
+bs=4K
+size=${SIZE}
+rw=randrw
+fadvise_hint=0
+rwmixread=${RW}
+invalidate=${INVAL}
+percentage_random=0
+# percentage_random=100
+# random_distribution=zipf:0.99
+loops=${LOOPS}
+create_serialize=0 # !!
+fsync_on_close=0 # default

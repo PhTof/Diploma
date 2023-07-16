@@ -1,0 +1,64 @@
+{
+  "measurements": [
+    {
+      "workload": "varmail",
+      "configuration": "Single device",
+      "ops bw": 38716
+    },
+    {
+      "workload": "varmail",
+      "configuration": "Linear map",
+      "ops bw": 44649
+    },
+    {
+      "workload": "varmail",
+      "configuration": "Striped map",
+      "ops bw": 60822
+    },
+    {
+      "workload": "varmail",
+      "configuration": "Linear map (modified)",
+      "ops bw": 81327
+    },
+    {
+      "workload": "webserver_numa",
+      "configuration": "Single device",
+      "ops bw": 317678
+    },
+    {
+      "workload": "fileserver",
+      "configuration": "Single device",
+      "ops bw": 30951
+    },
+    {
+      "workload": "webserver_numa",
+      "configuration": "Linear map",
+      "ops bw": 327451
+    },
+    {
+      "workload": "fileserver",
+      "configuration": "Linear map",
+      "ops bw": 31275
+    },
+    {
+      "workload": "webserver_numa",
+      "configuration": "Striped map",
+      "ops bw": 674084
+    },
+    {
+      "workload": "fileserver",
+      "configuration": "Striped map",
+      "ops bw": 62736
+    },
+    {
+      "workload": "webserver_numa",
+      "configuration": "Linear map (modified)",
+      "ops bw": 773664
+    },
+    {
+      "workload": "fileserver",
+      "configuration": "Linear map (modified)",
+      "ops bw": 79678
+    }
+  ]
+}

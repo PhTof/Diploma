@@ -1,0 +1,13 @@
+# Some buffered remote IO
+[global]
+include global.fio
+
+[LOCAL]
+numjobs=${LTHREADS}
+directory=${LDIR}
+cpus_allowed=${LCPULIST}
+
+[REMOTE]
+numjobs=${RTHREADS}
+directory=${RDIR}
+cpus_allowed=${RCPULIST}

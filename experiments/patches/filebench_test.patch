@@ -1,0 +1,77 @@
+diff --git a/Makefile.am b/Makefile.am
+index d3aa660..ec75198 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -25,7 +25,7 @@ ACLOCAL_AMFLAGS = -I m4
+ AM_YFLAGS = -d
+ #AM_LDFLAGS = 
+ if GCC_USED
+-AM_CFLAGS = -Wall -Wno-unknown-pragmas
++AM_CFLAGS = -Wall -Wno-unknown-pragmas -lnuma
+ endif
+ 
+ DEFS = -D_REENTRANT -DYYDEBUG -DYY_NO_INPUT -DFBLIBDIR=\"$(libdir)\" -D_LARGEFILE64_SOURCE -D_GNU_SOURCE
+diff --git a/flowop_library.c b/flowop_library.c
+index 7da8264..d884196 100644
+--- a/flowop_library.c
++++ b/flowop_library.c
+@@ -48,6 +48,7 @@
+ #include "fb_random.h"
+ #include "utils.h"
+ #include "fsplug.h"
++#include "numa.h"
+ 
+ /*
+  * These routines implement the flowops from the f language. Each
+@@ -1653,6 +1654,7 @@ flowoplib_createfile(threadflow_t *threadflow, flowop_t *flowop)
+ 
+ 	threadflow->tf_fse[fd] = file;
+ 
++	numa_run_on_node(atoi(file->fse_path) % NUMA_NUM_NODES);
+ 	flowop_beginop(threadflow, flowop);
+ 	err = fileset_openfile(&threadflow->tf_fd[fd], flowop->fo_fileset,
+ 		file, openflag, 0666, flowoplib_fileattrs(flowop));
+@@ -2496,6 +2498,12 @@ flowoplib_appendfilerand(threadflow_t *threadflow, flowop_t *flowop)
+ 	/* Measure time to write bytes */
+ 	flowop_beginop(threadflow, flowop);
+ 
++	if (flowop->fo_fdnumber) {
++		char *path = threadflow->tf_fse[flowop->fo_fdnumber]->fse_path;
++		int file_name_num = atoi(path);
++		numa_run_on_node(file_name_num % NUMA_NUM_NODES);
++	}
++
+ 	(void) FB_LSEEK(fdesc, 0, SEEK_END);
+ 	ret = FB_WRITE(fdesc, iobuf, appendsize);
+ 	if (ret != appendsize) {
+diff --git a/numa.h b/numa.h
+new file mode 100644
+index 0000000..39e473e
+--- /dev/null
++++ b/numa.h
+@@ -0,0 +1,10 @@
++#ifndef NUMA_H
++#define NUMA_H
++
++#include <numa.h>
++
++#define NUMA_NUM_NODES 2
++
++extern int numa_run_on_node(int node);
++
++#endif
+diff --git a/workloads/varmail.f b/workloads/varmail.f
+index 674719f..661ebd0 100644
+--- a/workloads/varmail.f
++++ b/workloads/varmail.f
+@@ -23,8 +23,8 @@
+ # Use is subject to license terms.
+ #
+ 
+-set $dir=/tmp
+-set $nfiles=1000
++set $dir=/mnt/pmem/phtof/daxdir
++set $nfiles=100000
+ set $meandirwidth=1000000
+ set $filesize=cvar(type=cvar-gamma,parameters=mean:16384;gamma:1.5)
+ set $nthreads=16

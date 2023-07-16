@@ -1,0 +1,247 @@
+{
+  "measurements": [
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 26168.613913,
+      "bw": 4524599
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 26861.278817,
+      "bw": 4447830
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 26559.744188,
+      "bw": 4469157
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 9940.356349,
+      "wlat": 15633.082043,
+      "bw": 8525007
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 10253.153899,
+      "wlat": 15852.375856,
+      "bw": 8430761
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 9885.169411,
+      "wlat": 16712.014152,
+      "bw": 8405418
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 5324.864086,
+      "wlat": 0,
+      "bw": 17189770
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 5286.3295,
+      "wlat": 0,
+      "bw": 16844594
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 0,
+      "threads": 32,
+      "rlat": 5365.531981,
+      "wlat": 0,
+      "bw": 17810208
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 82268.810123,
+      "bw": 1492900
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 81735.885542,
+      "bw": 1507657
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 82016.477478,
+      "bw": 1508742
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 89982.8905,
+      "wlat": 198770.851181,
+      "bw": 815774
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 76539.27336,
+      "wlat": 147512.340092,
+      "bw": 1101155
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 77558.195345,
+      "wlat": 149544.251882,
+      "bw": 1089287
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 20537.597332,
+      "wlat": 0,
+      "bw": 4688992
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 15609.799321,
+      "wlat": 0,
+      "bw": 6141001
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 16,
+      "threads": 32,
+      "rlat": 6399.863577,
+      "wlat": 0,
+      "bw": 16039403
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 515723.687399,
+      "bw": 246412
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 520991.17607,
+      "bw": 244273
+    },
+    {
+      "type": "dax",
+      "rw%": 0,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 0,
+      "wlat": 517825.664722,
+      "bw": 245546
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 185041.757802,
+      "wlat": 414172.317547,
+      "bw": 385593
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 168953.035169,
+      "wlat": 262903.76252,
+      "bw": 571119
+    },
+    {
+      "type": "dax",
+      "rw%": 50,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 168141.214501,
+      "wlat": 261702.479005,
+      "bw": 573344
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 107205.601523,
+      "wlat": 0,
+      "bw": 1167354
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 34404.253021,
+      "wlat": 0,
+      "bw": 3407233
+    },
+    {
+      "type": "dax",
+      "rw%": 100,
+      "rthreads": 32,
+      "threads": 32,
+      "rlat": 5585.425652,
+      "wlat": 0,
+      "bw": 15650388
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Some buffered remote IO
+[global]
+include global.fio
+
+[LOCAL]
+cpus_allowed=${LCPULIST}
+# cpus_allowed_policy=split
+numjobs=${LTHREADS}
+directory=${LDIR}

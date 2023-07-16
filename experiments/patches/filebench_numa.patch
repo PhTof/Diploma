@@ -1,0 +1,190 @@
+diff --git a/Makefile.am b/Makefile.am
+index d3aa660..ec75198 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -25,7 +25,7 @@ ACLOCAL_AMFLAGS = -I m4
+ AM_YFLAGS = -d
+ #AM_LDFLAGS = 
+ if GCC_USED
+-AM_CFLAGS = -Wall -Wno-unknown-pragmas
++AM_CFLAGS = -Wall -Wno-unknown-pragmas -lnuma
+ endif
+ 
+ DEFS = -D_REENTRANT -DYYDEBUG -DYY_NO_INPUT -DFBLIBDIR=\"$(libdir)\" -D_LARGEFILE64_SOURCE -D_GNU_SOURCE
+diff --git a/fileset.c b/fileset.c
+index 6e570f2..7ca2a9d 100644
+--- a/fileset.c
++++ b/fileset.c
+@@ -38,6 +38,7 @@
+ #include "gamma_dist.h"
+ #include "utils.h"
+ #include "fsplug.h"
++#include "numa.h"
+ 
+ static int filecreate_done;
+ 
+@@ -988,6 +989,16 @@ fileset_create(fileset_t *fileset)
+ 	int preallocated = 0;
+ 	int reusing;
+ 	uint64_t preallocpercent;
++	cpu_set_t previous_set;
++	int numa_node;
++
++	/* Save the current cpumask, useful in case
++	 * filebench is running with taskset */
++	sched_getaffinity(getpid(), sizeof(previous_set), &previous_set);
++
++	numa_node = (int) avd_get_int(fileset->fs_numa_node);
++	if (numa_node >= 0)
++		numa_run_on_node(numa_node);
+ 
+ 	fileset_path = avd_get_str(fileset->fs_path);
+ 	if (!fileset_path) {
+@@ -1164,6 +1175,9 @@ fileset_create(fileset_t *fileset)
+ 	    fileset_name,
+ 	    (u_longlong_t)(((gethrtime() - start) / 1000000000) + 1));
+ 
++	/* Restore the saved cpumask */
++	sched_setaffinity(getpid(), sizeof(previous_set), &previous_set);
++
+ 	return (FILEBENCH_OK);
+ }
+ 
+diff --git a/fileset.h b/fileset.h
+index 2910eb8..e53e7fa 100644
+--- a/fileset.h
++++ b/fileset.h
+@@ -102,6 +102,7 @@ typedef struct fileset {
+ 	avd_t		fs_readonly;	/* Attr */
+ 	avd_t		fs_writeonly;	/* Attr */
+ 	avd_t		fs_trust_tree;	/* Attr */
++	avd_t		fs_numa_node;
+ 	double		fs_meandepth;	/* Computed mean depth */
+ 	double		fs_meanwidth;	/* Specified mean dir width */
+ 	int		fs_realfiles;	/* Actual files */
+diff --git a/flowop.c b/flowop.c
+index 786caed..f2edc70 100644
+--- a/flowop.c
++++ b/flowop.c
+@@ -33,6 +33,7 @@
+ #include "flowop.h"
+ #include "stats.h"
+ #include "ioprio.h"
++#include "numa.h"
+ 
+ static flowop_t *flowop_define_common(threadflow_t *threadflow, char *name,
+     flowop_t *inherit, flowop_t **flowoplist_hdp, int instance, int type);
+@@ -336,6 +337,14 @@ flowop_start(threadflow_t *threadflow)
+ 	flowop_t *flowop;
+ 	size_t memsize;
+ 	int ret = FILEBENCH_OK;
++	int numa_node;
++
++	numa_node = (int) avd_get_int(threadflow->tf_numa_node);
++
++	if (numa_node >= 0)
++		numa_run_on_node(numa_node);
++	else // Improve the quality of measurements
++		numa_run_on_node(threadflow->tf_instance % NUMA_NUM_NODES);
+ 
+ 	set_thread_ioprio(threadflow);
+ 
+diff --git a/numa.h b/numa.h
+new file mode 100644
+index 0000000..39e473e
+--- /dev/null
++++ b/numa.h
+@@ -0,0 +1,10 @@
++#ifndef NUMA_H
++#define NUMA_H
++
++#include <numa.h>
++
++#define NUMA_NUM_NODES 2
++
++extern int numa_run_on_node(int node);
++
++#endif
+diff --git a/parser_gram.y b/parser_gram.y
+index b600b91..9a00a71 100644
+--- a/parser_gram.y
++++ b/parser_gram.y
+@@ -142,7 +142,7 @@ static void parser_enable_lathist(cmd_t *cmd);
+ %token FSA_IOSIZE FSA_FILENAME FSA_WSS FSA_NAME FSA_RANDOM FSA_INSTANCES
+ %token FSA_DSYNC FSA_TARGET FSA_ITERS FSA_NICE FSA_VALUE FSA_BLOCKING
+ %token FSA_HIGHWATER FSA_DIRECTIO FSA_DIRWIDTH FSA_FD FSA_SRCFD FSA_ROTATEFD
+-%token FSA_ENTRIES FSA_DIRDEPTHRV FSA_DIRGAMMA FSA_USEISM FSA_TYPE
++%token FSA_NUMA FSA_ENTRIES FSA_DIRDEPTHRV FSA_DIRGAMMA FSA_USEISM FSA_TYPE
+ %token FSA_LEAFDIRS FSA_INDEXED FSA_RANDTABLE FSA_RANDSRC FSA_ROUND
+ %token FSA_RANDSEED FSA_RANDGAMMA FSA_RANDMEAN FSA_MIN FSA_MAX FSA_MASTER
+ %token FSA_CLIENT FSS_TYPE FSS_SEED FSS_GAMMA FSS_MEAN FSS_MIN FSS_SRC FSS_ROUND
+@@ -1060,7 +1060,8 @@ attrs_define_fileset:
+ | FSA_DIRWIDTH { $$ = FSA_DIRWIDTH;}
+ | FSA_DIRDEPTHRV { $$ = FSA_DIRDEPTHRV;}
+ | FSA_DIRGAMMA { $$ = FSA_DIRGAMMA;}
+-| FSA_LEAFDIRS { $$ = FSA_LEAFDIRS;};
++| FSA_LEAFDIRS { $$ = FSA_LEAFDIRS;}
++| FSA_NUMA { $$ = FSA_NUMA;};
+ 
+ randvar_attr_name:
+   FSA_NAME { $$ = FSA_NAME;}
+@@ -1105,7 +1106,8 @@ attrs_define_thread:
+ | FSA_MEMSIZE { $$ = FSA_MEMSIZE;}
+ | FSA_USEISM { $$ = FSA_USEISM;}
+ | FSA_INSTANCES { $$ = FSA_INSTANCES;}
+-| FSA_IOPRIO { $$ = FSA_IOPRIO;};
++| FSA_IOPRIO { $$ = FSA_IOPRIO;}
++| FSA_NUMA { $$ = FSA_NUMA;};
+ 
+ attrs_flowop:
+   FSA_WSS { $$ = FSA_WSS;}
+@@ -1950,6 +1952,12 @@ parser_thread_define(cmd_t *cmd, procflow_t *procflow)
+ 	if (attr)
+ 		threadflow->tf_attrs |= THREADFLOW_USEISM;
+ 
++	attr = get_attr(cmd, FSA_NUMA);
++	if (attr)
++		threadflow->tf_numa_node = attr->attr_avd;
++	else
++		threadflow->tf_numa_node = avd_int_alloc(-1);
++
+ 	/* create the list of flowops */
+ 	for (inner_cmd = cmd->cmd_list; inner_cmd;
+ 	    inner_cmd = inner_cmd->cmd_next)
+@@ -2429,6 +2437,12 @@ parser_fileset_define(cmd_t *cmd)
+ 		return;
+ 	}
+ 
++	attr = get_attr(cmd, FSA_NUMA);
++	if (attr)
++		fileset->fs_numa_node = attr->attr_avd;
++	else
++		fileset->fs_numa_node = avd_int_alloc(-1);
++
+ 	attr = get_attr(cmd, FSA_ENTRIES);
+ 	if (attr)
+ 		fileset->fs_entries = attr->attr_avd;
+diff --git a/parser_lex.l b/parser_lex.l
+index 650ec13..da18b7e 100644
+--- a/parser_lex.l
++++ b/parser_lex.l
+@@ -90,6 +90,7 @@ randvar		        { return FSE_RAND; }
+ mode                    { return FSE_MODE; }
+ multi			{ return FSE_MULTI; }
+ cvar                    { return FSE_CVAR; }
++numa			{ return FSA_NUMA; }
+ 
+ alldone                 { return FSA_ALLDONE; }
+ blocking                { return FSA_BLOCKING; }
+diff --git a/threadflow.h b/threadflow.h
+index a4985de..87c5789 100644
+--- a/threadflow.h
++++ b/threadflow.h
+@@ -68,6 +68,7 @@ typedef struct threadflow {
+ 	aiolist_t	*tf_aiolist;	/* List of async I/Os */
+ #endif
+ 	avd_t		tf_ioprio;	/* ioprio attribute */
++	avd_t		tf_numa_node;
+ 
+ } threadflow_t;
+ 
