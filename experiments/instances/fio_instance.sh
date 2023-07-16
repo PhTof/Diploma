@@ -1,13 +1,11 @@
 #!/bin/bash
 
-this_dir="${BASH_SOURCE[0]%/*}"
-
 # $workdir, $fiobin
-source $this_dir/../scripts/global.conf
+source "${BASH_SOURCE[0]%/*}"/../scripts/global.conf
 
-source $this_dir/../scripts/graph/add_measurement.sh
-source $this_dir/../scripts/graph/parse.sh
-source $this_dir/../scripts/drop/drop_file.sh
+source $scripts_dir/graph/add_measurement.sh
+source $scripts_dir/graph/parse.sh
+source $scripts_dir/drop/drop_file.sh
 
 # Change these #
 # https://stackoverflow.com/questions/2013547/
@@ -34,7 +32,7 @@ rdir=$workdir/daxdir
 # (should this ever have been an issue?)
 invalidate=1  # TODO: change this again !!
 num_samples=3 # TODO: change back to 4
-dotfiodir=$this_dir/../dotfio/$fiotype
+dotfiodir=$base_dir/dotfio/$fiotype
 
 #==============#
 
@@ -88,7 +86,7 @@ fi
 
 for samples in $(seq 1 $num_samples); do
 	if [[ $invalidate -eq 0 ]]; then
-		dropfiles pmem/nodaxdir
+		dropfiles $workdir/nodaxdir
 	fi
 
 	# sleep 5

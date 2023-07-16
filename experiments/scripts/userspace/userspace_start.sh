@@ -3,7 +3,6 @@
 # $tools
 source "${BASH_SOURCE[0]%/*}"/../global.conf
 
-# $tools/userspace/src/processes &
-/ssd/philippos/github/philipos-5.13/userspace/src/processes &
+$userspace_dir/processes &
 
 sleep 1

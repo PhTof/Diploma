@@ -1,10 +1,10 @@
 #!/bin/bash
 
 source "${BASH_SOURCE[0]%/*}"/../global.conf
-source "${BASH_SOURCE[0]%/*}"/numa_node_of_file.sh
+source $scripts_dir/numa/numa_node_of_file.sh
 
 filebench_install_dir=$tools/filebench
-filebench_work_dir=/mnt/pmem/phtof/daxdir/bigfileset
+filebench_work_dir=$workdir/bigfileset
 
 echo 0 > /proc/sys/kernel/randomize_va_space
 

@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # $fiobin
-this_dir="${BASH_SOURCE[0]%/*}"
-source $this_dir/../global.conf
-source $this_dir/numa_node_of_file.sh
+source "${BASH_SOURCE[0]%/*}"/../global.conf
+source $scripts_dir/numa/numa_node_of_file.sh
 
 rm $workdir/daxdir/*
 

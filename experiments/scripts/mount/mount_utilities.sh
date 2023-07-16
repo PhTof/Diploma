@@ -1,10 +1,7 @@
 #!/bin/bash
 
-# $sudo
-
-mount_dir=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-
-source $mount_dir/../global.conf
+# $sudo, $scripts_dir
+source "${BASH_SOURCE[0]%/*}"/../global.conf
 
 function mount_undo {
 	mountpoint="${1:-/mnt/pmem}"
@@ -33,16 +30,16 @@ function mount_single_device {
 }
 
 function mount_linear_mapping {
-	$sudo $mount_dir/mount_create_linear.sh
+	$sudo $scripts_dir/mount/mount_create_linear.sh
 	$sudo mount -o dax=inode /dev/mapper/linear /mnt/pmem
 }
 
 function mount_linear_mapping_numa {
-	$sudo $mount_dir/mount_create_linear.sh
+	$sudo $scripts_dir/mount/mount_create_linear.sh
 	$sudo mount -o dax=inode -o numa /dev/mapper/linear /mnt/pmem
 }
 
 function mount_striped_mapping {
-	$sudo $mount_dir/mount_create_striped.sh
+	$sudo $scripts_dir/mount/mount_create_striped.sh
 	$sudo mount -o dax=inode /dev/mapper/striped /mnt/pmem
 }

@@ -13,7 +13,7 @@
 # Fancy printing
 source "${BASH_SOURCE[0]%/*}"/../global.conf
 # numa_get_middle_block && numa_get_file_info
-source "${BASH_SOURCE[0]%/*}"/numa_common.sh
+source $scripts_dir/numa/numa_common.sh
 
 # PARAMETERS
 files_per_node=10

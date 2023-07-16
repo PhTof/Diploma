@@ -1,4 +1,5 @@
 #!/bin/bash
+source $userspace_dir/../global.conf
 
-rm -rf /mnt/pmem/phtof/daxdir/*
-rm -rf /mnt/pmem/phtof/nodaxdir/*
+rm -rf $workdir/daxdir/*
+rm -rf $workdir/nodaxdir/*

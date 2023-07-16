@@ -1,9 +1,9 @@
 #!/bin/bash
 
-source scripts/global.conf
+source "${BASH_SOURCE[0]%/*}"/../scripts/global.conf
 
-source scripts/graph/add_measurement.sh
-source scripts/graph/parse.sh
+source $scripts_dir/graph/add_measurement.sh
+source $scripts_dir/graph/parse.sh
 
 # Configurable from outside this script
 workload=${1:-fileserver}

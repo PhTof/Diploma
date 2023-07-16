@@ -1,18 +1,17 @@
 #!/bin/bash
 
-this_dir="${BASH_SOURCE[0]%/*}"
-source $this_dir/scripts/global.conf
-source $this_dir/scripts/mount/mount_utilities.sh
-source $this_dir/scripts/workspace/workspace_utilities.sh
+source "${BASH_SOURCE[0]%/*}"/../scripts/global.conf
+
+source $scripts_dir/mount/mount_utilities.sh
+source $scripts_dir/workspace/workspace_utilities.sh
 
 id=primitive
-instance_script=$this_dir/fio_instance.sh
-output_json=$this_dir/graphs/json/$id.json
-output_graph=$this_dir/graphs/results/$id.png
+instance_script=$base_dir/instances/fio_instance.sh
+output_json=$base_dir/graphs/json/$id.json
+output_graph=$base_dir/graphs/results/$id.png
 
 function run_instances {
-	script=$1
-	output=$2
+	output=$1
 
 	export OUT=$output SIZE=4G
 	export ENG=sync ATYPE=dax
@@ -25,7 +24,7 @@ function run_instances {
 				#========================================#
 				rm -r /mnt/pmem/phtof/daxdir/*
 				export THR=$threads RTHR=$rthreads RW=$rw
-				$script
+				$instance_script
 			done
 		done
 	done
@@ -40,5 +39,5 @@ mount_undo
 
 mount_single_device
 workspace_prepare
-run_instances $instance_script $output_json
+run_instances $output_json
 python3 graphs/scripts/$id.py $output_json $output_graph

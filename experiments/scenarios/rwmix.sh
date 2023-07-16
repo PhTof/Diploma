@@ -1,14 +1,14 @@
 #!/bin/bash
 
-this_dir="${BASH_SOURCE[0]%/*}"
-source $this_dir/../scripts/global.conf
-source $this_dir/../scripts/mount/mount_utilities.sh
-source $this_dir/../scripts/workspace/workspace_utilities.sh
+source "${BASH_SOURCE[0]%/*}"/../scripts/global.conf
+
+source $scripts_dir/mount/mount_utilities.sh
+source $scripts_dir/workspace/workspace_utilities.sh
 
 id=rwmix
-fio_instance=$this_dir/../instances/fio_instance.sh
-output_json=$this_dir/../graphs/json/$id.json
-output_graph=$this_dir/../graphs/results/$id.png
+fio_instance=$base_dir/instances/fio_instance.sh
+output_json=$base_dir/graphs/json/$id.json
+output_graph=$base_dir/graphs/results/$id.png
 
 function run_instances {
 	output=$1
